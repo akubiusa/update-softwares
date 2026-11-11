@@ -54,6 +54,5 @@ These are documented, not fixed:
 
 - `pytest.ini` starts with `[tool:pytest]` (the `setup.cfg` header), which pytest ignores in `pytest.ini`. Its `pythonpath`, `addopts` and `markers` settings therefore do not apply, which is why `PYTHONPATH=.` is needed. The `slow` / `integration` / `unit` markers are not used by any test.
 - `src/windows/update_scoop_softwares.py` imports `logger` from `venv` (`from venv import logger`) instead of defining `logging.getLogger(__name__)`.
-- `update-softwares.ps1` does not install `requirements.txt`.
 - `update-softwares.sh` runs under `set -u`, so a missing `ISSUE_NUMBER` ends with an "unbound variable" error before the friendly message is printed.
 - `tests/linux/test_update_apt_softwares.py` defines `test_run_apt_full_upgrade_failure` twice; the second definition shadows the first.

@@ -358,6 +358,10 @@ def run(github_issue, hostname):
       operation_system=os_display,
     )
 
+    if final_status != "success":
+      logger.error("Upgrade failed; skipping system restart.")
+      return
+
     logger.info("Upgrade complete.")
 
     logger.info("Restarting the system in 10 seconds...")
