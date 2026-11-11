@@ -6,7 +6,7 @@ Automates package updates on multiple Linux (apt) and Windows (scoop) machines, 
 
 Each machine runs `python3 -m src <ISSUE_NUMBER>`. The tool reads the Issue body, finds the table rows that belong to the current host, and updates the rows and posts comments on the Issue while it works.
 
-- Linux (`apt`): requires root. Repairs an interrupted dpkg (`dpkg --configure -a`) if needed, runs `apt-get update`, simulates `apt-get -s -V dist-upgrade`, comments the packages to upgrade, install and remove, runs `apt-get -y dist-upgrade`, and then **reboots the machine** (`shutdown -r 0`, 10 seconds after the final status is written). Nothing is upgraded and no reboot happens when there is nothing to do.
+- Linux (`apt`): requires root. Repairs an interrupted dpkg (`dpkg --configure -a`) if needed, runs `apt-get update`, simulates `apt-get -s -V dist-upgrade`, comments the packages to upgrade, install and remove, runs `apt-get -y dist-upgrade`, and then **reboots the machine** (`shutdown -r 0`, 10 seconds after the final status is written). Nothing is upgraded and no reboot happens when there is nothing to do, and the machine is not rebooted when the upgrade fails.
 - Windows (`scoop`): updates the buckets (`scoop update`), comments the outdated apps (`scoop status`), updates apps that are not running, and asks `Do you want to update? [Y/n]` for each running app. When you accept, the app's processes are terminated, the app is updated, and it is started again. Finally it runs `scoop cleanup *` and `scoop cache rm *`. Cleanup failures are reported as a warning comment and do not affect the status.
 - The OS name and version, and the OS end-of-life (EOL) date from [endoflife.date](https://endoflife.date/), are written to the row. When EOL is already past or less than 90 days away, the status mark becomes 🔴 and the EOL date is shown in bold.
 - Concurrent runs on different machines are handled by re-reading the latest Issue body before every update and retrying (up to 3 times) when the update fails.
@@ -54,7 +54,7 @@ A log file `YYYY-MM-DD.log` is written to the log directory (DEBUG level). INFO 
 
 Both scripts need `ISSUE_NUMBER` to be set, clone or update this repository on each run, set `UPDATE_SOFTWARES_LOG_DIR`, and then run `python -m src`.
 
-- `update-softwares.sh` (Linux, run as root): clones into `/opt/update-softwares`, offers to install `git` and `python3`, creates a virtual environment, installs `requirements.txt`, and runs the tool.
+- `update-softwares.sh` (Linux, run as root): clones into `/opt/update-softwares`, offers to install `git` and `python3`, installs `python3-venv` with apt when `ensurepip` is unavailable, creates a virtual environment (recreated with `python3 -m venv --clear venv` when its pip does not run), installs `requirements.txt`, and runs the tool.
 - `update-softwares.ps1` (Windows): clones into `%USERPROFILE%\update-softwares`, installs `requirements.txt` with `python -m pip`, and runs the tool with `python`.
 
 ## Windows: outdated winget apps
@@ -98,7 +98,7 @@ List the pins with `winget pin list`.
 
 ```bash
 pip install -r requirements.txt pytest
-PYTHONPATH=. pytest tests/
+pytest tests/
 ```
 
-`PYTHONPATH=.` is required because `pytest.ini` starts with a `[tool:pytest]` header (the `setup.cfg` form), which pytest ignores in `pytest.ini`, so its `pythonpath = .` setting does not apply. The same tests also run with `python3 -m unittest discover -s tests -p "test_*.py"`.
+The same tests also run with `python3 -m unittest discover -s tests -p "test_*.py"`.
