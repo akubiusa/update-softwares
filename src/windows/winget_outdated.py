@@ -73,8 +73,8 @@ def get_winget_outdated():
 def get_winget_pinned_ids(package_ids):
   """Get the package IDs pinned in winget.
 
-  The table printed by winget pin list has locale-dependent column widths, so columns are not parsed;
-  each ID in package_ids is matched as a whitespace-separated token of the output.
+  The table printed by winget pin list has locale-dependent column widths, so columns are not parsed.
+  Each ID in package_ids is matched as a whitespace-separated token of the output.
 
   Args:
     package_ids: Package IDs to check.

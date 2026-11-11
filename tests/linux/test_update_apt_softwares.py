@@ -279,8 +279,8 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     from src.linux.update_apt_softwares import run
     run(mock_issue_instance, "test-host")
 
-    mock_logger.info.assert_called()  # logging happened
-    mock_issue_instance.atomic_update_with_retry.assert_called()  # the atomic update is called
+    mock_logger.info.assert_called()
+    mock_issue_instance.atomic_update_with_retry.assert_called()
     # operation_system is passed to every call
     for call_args in mock_issue_instance.atomic_update_with_retry.call_args_list:
       self.assertEqual(call_args.kwargs["operation_system"], "Ubuntu 22.04.5 LTS")

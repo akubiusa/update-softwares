@@ -20,5 +20,5 @@ This repository is a Python tool that updates apt (Linux) and scoop (Windows) pa
 
 - 2-space indentation in Python (defined in `.editorconfig`).
 - The interactive `input()` prompt before stopping a running app in the scoop updater.
-- The automatic reboot (`shutdown -r 0`) at the end of a successful apt upgrade.
+- The automatic reboot (`shutdown -r 0`) at the end of the apt run, after the final status is written.
 - Japanese text written into the GitHub Issue (see Language).

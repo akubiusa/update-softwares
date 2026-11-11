@@ -29,14 +29,12 @@ def get_windows_version_info() -> Tuple[str, str]:
   """
   Get the Windows version.
 
-  Read the build number and DisplayVersion from the Windows registry
-  to determine the Windows version.
+  Read the build number and DisplayVersion from the Windows registry to determine the Windows version.
   A detailed version (for example 21H2, 22H2, 23H2, 24H2, 25H2) is included when available.
 
   Returns:
     Tuple[str, str]: ("Windows", version)
-    The version looks like "10-22H2" or "11-24H2"
-    and is "10" or "11" when the detailed version is unknown.
+    The version looks like "10-22H2" or "11-24H2", and is "10" or "11" when the detailed version is unknown.
     Returns ("Windows", "Unknown") if the registry cannot be read.
   """
   try:
@@ -75,8 +73,6 @@ def get_linux_version_info() -> Tuple[str, str]:
     Tuple[str, str]: (distribution name, version)
     For example ("Ubuntu", "22.04") or ("Debian", "12").
     Returns ("Linux", "Unknown") if reading the information fails.
-    
-  Raises:
   """
   try:
     if os.path.exists('/etc/os-release'):
@@ -110,7 +106,6 @@ def get_linux_version_info() -> Tuple[str, str]:
       elif 'openSUSE' in name:
         return ("openSUSE", version)
       else:
-        # Other distributions
         return (name, version)
         
     # No /etc/os-release: use the platform module
@@ -265,9 +260,7 @@ def get_os_display_string() -> str:
   Get the OS name and version string shown in the "OS" column.
 
   On Linux, return PRETTY_NAME from /etc/os-release as is.
-  When it is unavailable, or on Windows, return the (os_name, version) pair from
-  get_linux_version_info() / get_windows_version_info()
-  formatted as "{os_name} {version}".
+  When it is unavailable, or on Windows, return the pair from get_linux_version_info() / get_windows_version_info() formatted as "{os_name} {version}".
 
   Returns:
     str: The display string, or "Unknown" if it cannot be obtained

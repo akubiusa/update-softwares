@@ -54,12 +54,10 @@ def update_scoop_repos():
 def get_scoop_status():
     raw_output = os.popen("scoop status").read()
 
-    # Strip ANSI color codes
     cleaned_output = re.sub(r'\x1b\[[0-9;]*m', '', raw_output)
 
     lines = cleaned_output.strip().splitlines()
 
-    # Find the header row
     header_index = None
     for i, line in enumerate(lines):
         if 'Name' in line and 'Installed Version' in line:
@@ -186,10 +184,10 @@ def stop_app(app_processes):
     stopped_processes = []
     for process in app_processes:
         pid = process["pid"]
-        process_name = process.get("name", f"PID-{pid}")  # fallback name in case the process exits before name() is read
+        process_name = process.get("name", f"PID-{pid}")  # fallback when the dict has no name
         try:
             psutil_process = psutil.Process(pid)
-            process_name = psutil_process.name()  # prefer the live name
+            process_name = psutil_process.name()
             psutil_process.terminate()
             stopped_processes.append(process_name)
             print(f"Stopped {process_name}.")

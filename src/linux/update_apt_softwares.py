@@ -28,13 +28,11 @@ def _is_installed_version(value):
 def is_dpkg_broken() -> bool:
   """Detect whether dpkg is in an interrupted state (one that needs dpkg --configure -a).
 
-  dpkg --audit exits with 0 even when there are broken packages,
-  so check=True is not used and only the presence of stdout is checked.
+  dpkg --audit exits with 0 even when there are broken packages, so check=True is not used and only the presence of stdout is checked.
 
   Returns:
       bool: True if dpkg is interrupted, False if it is healthy.
-          Also False when dpkg --audit itself fails to run,
-          so that a detection problem does not block the apt update itself.
+          Also False when dpkg --audit itself fails to run, so that a detection problem does not block the apt update itself.
   """
   try:
     result = subprocess.run(
@@ -53,8 +51,6 @@ def is_dpkg_broken() -> bool:
 
 def run_dpkg_configure() -> bool:
   """Run dpkg --configure -a to finish unconfigured packages.
-
-  Uses os.system like the other apt commands in this module.
 
   Returns:
       bool: True if the exit code is 0, False otherwise or on an exception.
@@ -106,9 +102,11 @@ def get_apt_full_upgrade_target():
   """Simulate apt-get dist-upgrade and parse the packages it would change.
 
   Returns:
-      tuple: (None, to_upgrade, to_install, to_remove). The first element is always None
-          and only kept for compatibility with existing callers. Each list holds dictionaries
-          with name / installed / candidate (to_remove has no candidate).
+      tuple: (None, to_upgrade, to_install, to_remove). The first element is always None and only kept for compatibility with existing callers.
+          Each list holds dictionaries with name / installed / candidate (to_remove has no candidate).
+
+  Raises:
+      subprocess.CalledProcessError: If the apt-get simulation exits non-zero.
   """
   try:
     result = subprocess.run(

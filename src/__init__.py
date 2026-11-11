@@ -95,11 +95,9 @@ class GitHubIssue:
         software_update["markdown"]["upgraded"] = upgraded
         software_update["markdown"]["failed"] = failed
 
-        # Update OS EOL only when given
         if os_eol is not None:
           software_update["markdown"]["os_eol"] = os_eol
 
-        # Update the OS name and version only when given
         if operation_system is not None:
           software_update["markdown"]["operation_system"] = operation_system
 
@@ -133,11 +131,9 @@ class GitHubIssue:
             software_update["markdown"]["upgraded"] = upgraded
             software_update["markdown"]["failed"] = failed
             
-            # Update OS EOL only when given
             if os_eol is not None:
               software_update["markdown"]["os_eol"] = os_eol
 
-            # Update the OS name and version only when given
             if operation_system is not None:
               software_update["markdown"]["operation_system"] = operation_system
 
@@ -210,13 +206,11 @@ class GitHubIssue:
       if m is None:
         continue
 
-      # Split on | to get each cell
       markdown = m.group("markdown")
       split_markdown = markdown.split("|")
       
       # Supports 8 columns (old format) and 9 columns (new format with OS EOL)
       if len(split_markdown) == 8:
-        # Old format (no OS EOL)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -238,7 +232,6 @@ class GitHubIssue:
           "package_manager": m.group("package_manager")
         })
       elif len(split_markdown) == 9:
-        # New format (with OS EOL)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -346,13 +339,11 @@ class GitHubIssue:
       if m is None:
         continue
 
-      # Split on | to get each cell
       markdown = m.group("markdown")
       split_markdown = markdown.split("|")
       
       # Supports 8 columns (old format) and 9 columns (new format with OS EOL)
       if len(split_markdown) == 8:
-        # Old format (no OS EOL)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -374,7 +365,6 @@ class GitHubIssue:
           "package_manager": m.group("package_manager")
         })
       elif len(split_markdown) == 9:
-        # New format (with OS EOL)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
