@@ -22,15 +22,15 @@ POWERSHELL_SCRIPT = (
 
 
 class WingetPinListError(Exception):
-  """winget pin list の実行に失敗したことを表す例外。"""
+  """Raised when winget pin list fails."""
 
 
 def get_winget_outdated():
-  """winget で管理されているアプリのうち、インストール済みが最新より古いものを取得する。
+  """Get the winget-managed apps whose installed version is older than the latest.
 
   Returns:
-    list[dict] | None: Id / Name / Installed / Latest / AutoUpdatable を持つ辞書のリスト。
-      pwsh やモジュールが無い、実行に失敗した、出力が不正な場合は警告ログを出して None を返す。
+    list[dict] | None: Dictionaries with Id / Name / Installed / Latest / AutoUpdatable.
+      Logs a warning and returns None if pwsh or the module is missing, the command fails, or the output is invalid.
   """
   try:
     result = subprocess.run(
@@ -71,19 +71,19 @@ def get_winget_outdated():
 
 
 def get_winget_pinned_ids(package_ids):
-  """winget でピン留めされているパッケージ ID を取得する。
+  """Get the package IDs pinned in winget.
 
-  winget pin list の表形式出力は列幅がロケール依存のため列は解釈せず、
-  package_ids の各 ID が出力中に空白区切りのトークンとして現れるかで照合する。
+  The table printed by winget pin list has locale-dependent column widths, so columns are not parsed;
+  each ID in package_ids is matched as a whitespace-separated token of the output.
 
   Args:
-    package_ids: 照合対象のパッケージ ID の集合。
+    package_ids: Package IDs to check.
 
   Returns:
-    set[str]: package_ids のうち、ピン留めされている ID の集合。
+    set[str]: The IDs in package_ids that are pinned.
 
   Raises:
-    WingetPinListError: winget pin list の実行に失敗した場合。
+    WingetPinListError: If winget pin list fails.
   """
   try:
     result = subprocess.run(
@@ -105,14 +105,14 @@ def get_winget_pinned_ids(package_ids):
 
 
 def classify(outdated, pinned_ids):
-  """ピン留め済みを除外し、自動更新可と要手動に分類する。
+  """Exclude pinned packages and split the rest into auto-updatable and manual.
 
   Args:
-    outdated: get_winget_outdated() の戻り値。
-    pinned_ids: ピン留めされているパッケージ ID の集合。
+    outdated: Return value of get_winget_outdated().
+    pinned_ids: Set of pinned package IDs.
 
   Returns:
-    tuple[list[dict], list[dict]]: (自動更新可, 要手動)。
+    tuple[list[dict], list[dict]]: (auto-updatable, manual).
   """
   targets = [p for p in outdated if p["Id"] not in pinned_ids]
   auto_updatable = [p for p in targets if p["AutoUpdatable"]]
@@ -121,10 +121,10 @@ def classify(outdated, pinned_ids):
 
 
 def _safe_print(line):
-  """コンソールに 1 行表示する。標準出力のエンコーディングで表せない文字は置換して表示する。
+  """Print one line to the console, replacing characters the stdout encoding cannot represent.
 
   Args:
-    line: 表示する行。
+    line: The line to print.
   """
   try:
     print(line)
@@ -133,14 +133,14 @@ def _safe_print(line):
     print(line.encode(encoding, errors="replace").decode(encoding))
 
 def _report_section(title, packages):
-  """表示用に、見出しとパッケージごとの行のリストを組み立てる。
+  """Build the heading line and one line per package.
 
   Args:
-    title: 区分の見出し。件数が末尾に付く。
-    packages: 表示するパッケージの辞書のリスト。
+    title: Section heading; the package count is appended.
+    packages: Package dictionaries to show.
 
   Returns:
-    list[str]: 見出し行とパッケージ行。
+    list[str]: The heading line and the package lines.
   """
   lines = [f"{title}: {len(packages)}"]
   for p in packages:
@@ -149,9 +149,9 @@ def _report_section(title, packages):
 
 
 def report_winget_outdated():
-  """winget の未更新アプリをコンソールとログに表示する。更新は行わない。
+  """Show outdated winget apps on the console and in the log. Nothing is updated.
 
-  取得や表示の失敗は警告ログのみで、呼び出し元には例外を伝播させない。
+  Failures are only logged as warnings; no exception propagates to the caller.
   """
   try:
     outdated = get_winget_outdated()
@@ -173,7 +173,7 @@ def report_winget_outdated():
     lines = ["Outdated winget packages (update manually, not updated by this tool):"]
     lines += _report_section("auto-updatable (winget upgrade)", auto_updatable)
     lines += _report_section("manual (reinstall may be required)", manual)
-    # コンソールには print、ログファイルには DEBUG で出す (INFO だとコンソールに二重表示される)
+    # print to the console and log at DEBUG for the log file (INFO would show up twice on the console)
     for line in lines:
       _safe_print(line)
       logger.debug(line)

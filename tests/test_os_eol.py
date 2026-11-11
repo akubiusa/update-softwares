@@ -1,4 +1,4 @@
-"""OS EOL 機能のテスト"""
+"""Tests for the OS EOL feature."""
 import unittest
 from unittest.mock import patch, mock_open, MagicMock
 from datetime import datetime, timedelta
@@ -15,10 +15,10 @@ from src.os_eol import (
 
 
 class TestOSEOL(unittest.TestCase):
-  """OS EOL 機能のテストケース"""
+  """Test cases for the OS EOL feature."""
 
   def _mock_windows_registry(self, values):
-    """指定された Windows レジストリ値を返す winreg モックを作る"""
+    """Build a winreg mock that returns the given Windows registry values."""
     winreg = MagicMock()
     winreg.HKEY_LOCAL_MACHINE = object()
     key = MagicMock()
@@ -34,7 +34,7 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_windows_10(self):
-    """Windows 10 のバージョン情報取得テスト"""
+    """Get Windows 10 version info."""
     winreg = self._mock_windows_registry({"CurrentBuildNumber": "19045"})
 
     with patch.dict('sys.modules', {'winreg': winreg}):
@@ -45,7 +45,7 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_windows_11(self):
-    """Windows 11 のバージョン情報取得テスト"""
+    """Get Windows 11 version info."""
     winreg = self._mock_windows_registry({"CurrentBuildNumber": "22621"})
 
     with patch.dict('sys.modules', {'winreg': winreg}):
@@ -56,18 +56,18 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_by_build_number(self):
-    """ビルド番号から Windows バージョンを判定するテスト"""
+    """Detect the Windows version from the build number."""
     winreg = self._mock_windows_registry({"CurrentBuildNumber": "22000"})
 
     with patch.dict('sys.modules', {'winreg': winreg}):
       os_name, version = get_windows_version_info()
 
     self.assertEqual(os_name, "Windows")
-    self.assertEqual(version, "11")  # ビルド 22000 以上は Windows 11
+    self.assertEqual(version, "11")  # Build 22000 and later is Windows 11
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_with_display_version_22h2(self):
-    """Windows 10 22H2 の詳細バージョン取得テスト"""
+    """Get the detailed Windows 10 22H2 version."""
     winreg = self._mock_windows_registry({
       "CurrentBuildNumber": "19045",
       "DisplayVersion": "22H2",
@@ -81,7 +81,7 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_with_display_version_24h2(self):
-    """Windows 11 24H2 の詳細バージョン取得テスト"""
+    """Get the detailed Windows 11 24H2 version."""
     winreg = self._mock_windows_registry({
       "CurrentBuildNumber": "26100",
       "DisplayVersion": "24H2",
@@ -95,7 +95,7 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_without_display_version(self):
-    """DisplayVersion がなくてもメジャーバージョンを返すテスト"""
+    """Return the major version even without DisplayVersion."""
     winreg = self._mock_windows_registry({"CurrentBuildNumber": "19045"})
 
     with patch.dict('sys.modules', {'winreg': winreg}):
@@ -106,7 +106,7 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_current_build_fallback(self):
-    """CurrentBuildNumber がなくても CurrentBuild から判定するテスト"""
+    """Fall back to CurrentBuild when CurrentBuildNumber is missing."""
     winreg = self._mock_windows_registry({"CurrentBuild": "26100"})
 
     with patch.dict('sys.modules', {'winreg': winreg}):
@@ -117,7 +117,7 @@ class TestOSEOL(unittest.TestCase):
 
   @patch('os.name', 'nt')
   def test_get_windows_version_info_registry_error(self):
-    """レジストリを読めない場合は Unknown を返すテスト"""
+    """Return Unknown when the registry cannot be read."""
     winreg = self._mock_windows_registry({})
     winreg.OpenKey.side_effect = OSError("registry unavailable")
 
@@ -130,7 +130,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.path.exists')
   @patch('builtins.open', mock_open(read_data='NAME="Ubuntu"\nVERSION_ID="22.04"\n'))
   def test_get_linux_version_info_ubuntu(self, mock_exists):
-    """Ubuntu のバージョン情報取得テスト"""
+    """Get Ubuntu version info."""
     mock_exists.return_value = True
         
     os_name, version = get_linux_version_info()
@@ -141,18 +141,18 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.path.exists')
   @patch('builtins.open', mock_open(read_data='NAME="Debian GNU/Linux"\nVERSION_ID="12"\n'))
   def test_get_linux_version_info_debian(self, mock_exists):
-    """Debian のバージョン情報取得テスト"""
+    """Get Debian version info."""
     mock_exists.return_value = True
         
     os_name, version = get_linux_version_info()
         
-    # Debian は NAME フィールドをそのまま返すのでチェック
+    # Debian returns the NAME field as is
     self.assertIn("Debian", os_name)
     self.assertEqual(version, "12")
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_windows_10(self, mock_get):
-    """Windows 10 の EOL 日取得テスト (API モック)"""
+    """Get the Windows 10 EOL date (mocked API)."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {'eol': '2025-10-14'}
@@ -165,7 +165,7 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_windows_11(self, mock_get):
-    """Windows 11 の EOL 日取得テスト (API モック)"""
+    """Get the Windows 11 EOL date (mocked API)."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {'eol': '2031-10-14'}
@@ -178,7 +178,7 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_ubuntu_2204(self, mock_get):
-    """Ubuntu 22.04 の EOL 日取得テスト (API モック)"""
+    """Get the Ubuntu 22.04 EOL date (mocked API)."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {'eol': '2027-04-30'}
@@ -191,7 +191,7 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_debian_12(self, mock_get):
-    """Debian 12 の EOL 日取得テスト (API モック)"""
+    """Get the Debian 12 EOL date (mocked API)."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {'eol': '2028-06-30'}
@@ -203,51 +203,51 @@ class TestOSEOL(unittest.TestCase):
     self.assertEqual(eol_date, datetime(2028, 6, 30))
     
   def test_get_os_eol_date_unknown(self):
-    """未知の OS の EOL 日取得テスト"""
+    """Get the EOL date of an unknown OS."""
     eol_date = get_os_eol_date("UnknownOS", "1.0")
         
     self.assertIsNone(eol_date)
     
   def test_format_eol_info_unknown(self):
-    """EOL 日が不明な場合のフォーマットテスト"""
+    """Format an unknown EOL date."""
     formatted, is_critical = format_eol_info(None)
         
     self.assertEqual(formatted, "不明")
     self.assertFalse(is_critical)
     
   def test_format_eol_info_expired(self):
-    """EOL が過ぎている場合のフォーマットテスト"""
+    """Format an EOL date in the past."""
     past_date = datetime.now() - timedelta(days=30)
     formatted, is_critical = format_eol_info(past_date)
         
     self.assertIn("期限切れ", formatted)
     self.assertTrue(is_critical)
-    self.assertIn("**", formatted)  # 強調表示
+    self.assertIn("**", formatted)  # emphasized
     
   def test_format_eol_info_critical(self):
-    """90 日未満の EOL のフォーマットテスト"""
+    """Format an EOL date less than 90 days away."""
     near_future_date = datetime.now() + timedelta(days=50)
     formatted, is_critical = format_eol_info(near_future_date)
         
-    # 日数は計算時点で変わる可能性があるので、パターンマッチで確認
+    # The day count depends on when the test runs, so match a pattern
     self.assertRegex(formatted, r"\d+ 日後")
     self.assertTrue(is_critical)
-    self.assertIn("**", formatted)  # 強調表示
+    self.assertIn("**", formatted)  # emphasized
     
   def test_format_eol_info_safe(self):
-    """90 日以上先の EOL のフォーマットテスト"""
+    """Format an EOL date 90 or more days away."""
     future_date = datetime.now() + timedelta(days=200)
     formatted, is_critical = format_eol_info(future_date)
         
-    # 日数は計算時点で変わる可能性があるので、パターンマッチで確認
+    # The day count depends on when the test runs, so match a pattern
     self.assertRegex(formatted, r"\d+ 日後")
     self.assertFalse(is_critical)
-    self.assertNotIn("**", formatted)  # 強調表示なし
+    self.assertNotIn("**", formatted)  # not emphasized
     
   @patch('os.name', 'nt')
   @patch('src.os_eol.get_windows_version_info')
   def test_get_os_eol_info_windows(self, mock_get_version):
-    """Windows の OS EOL 情報取得テスト"""
+    """Get OS EOL info on Windows."""
     mock_get_version.return_value = ("Windows", "10")
         
     eol_info, is_critical = get_os_eol_info()
@@ -259,7 +259,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.name', 'posix')
   @patch('src.os_eol.get_linux_version_info')
   def test_get_os_eol_info_linux(self, mock_get_version):
-    """Linux の OS EOL 情報取得テスト"""
+    """Get OS EOL info on Linux."""
     mock_get_version.return_value = ("Ubuntu", "22.04")
         
     eol_info, is_critical = get_os_eol_info()
@@ -270,7 +270,7 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_from_api_success(self, mock_get):
-    """API から EOL 日を正常に取得するテスト"""
+    """Fetch the EOL date from the API successfully."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
@@ -285,7 +285,7 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_from_api_not_found(self, mock_get):
-    """API で見つからない場合のテスト"""
+    """The API does not know the product."""
     mock_response = MagicMock()
     mock_response.status_code = 404
     mock_get.return_value = mock_response
@@ -296,7 +296,7 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_from_api_timeout(self, mock_get):
-    """API タイムアウト時のテスト"""
+    """The API times out."""
     mock_get.side_effect = Exception("Timeout")
         
     eol_date = get_os_eol_date_from_api("Ubuntu", "22.04")
@@ -305,8 +305,8 @@ class TestOSEOL(unittest.TestCase):
     
   @patch('src.os_eol.requests.get')
   def test_get_os_eol_date_from_api_retry(self, mock_get):
-    """API リトライのテスト"""
-    # 最初の 2 回は失敗、3 回目は成功
+    """The API request is retried."""
+    # The first 2 attempts fail and the 3rd succeeds
     mock_response_fail = MagicMock()
     mock_response_fail.status_code = 500
         
@@ -316,7 +316,7 @@ class TestOSEOL(unittest.TestCase):
         
     mock_get.side_effect = [mock_response_fail, mock_response_fail, mock_response_success]
         
-    with patch('time.sleep'):  # sleep をスキップ
+    with patch('time.sleep'):  # skip sleeping
       eol_date = get_os_eol_date_from_api("Ubuntu", "22.04")
         
     self.assertIsNotNone(eol_date)
@@ -326,7 +326,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.path.exists')
   @patch('builtins.open', mock_open(read_data='NAME="Fedora Linux"\nVERSION_ID="40"\n'))
   def test_get_linux_version_info_fedora(self, mock_exists):
-    """Fedora のバージョン情報取得テスト"""
+    """Get Fedora version info."""
     mock_exists.return_value = True
         
     os_name, version = get_linux_version_info()
@@ -337,7 +337,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.path.exists')
   @patch('builtins.open', mock_open(read_data='NAME="CentOS Linux"\nVERSION_ID="7"\n'))
   def test_get_linux_version_info_centos(self, mock_exists):
-    """CentOS のバージョン情報取得テスト"""
+    """Get CentOS version info."""
     mock_exists.return_value = True
         
     os_name, version = get_linux_version_info()
@@ -349,7 +349,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.path.exists')
   @patch('builtins.open', mock_open(read_data='NAME="Ubuntu"\nVERSION_ID="22.04"\nPRETTY_NAME="Ubuntu 22.04.5 LTS"\n'))
   def test_get_os_display_string_linux_pretty_name(self, mock_exists):
-    """Linux で PRETTY_NAME が取得できる場合、そのまま返すテスト"""
+    """On Linux, return PRETTY_NAME as is when available."""
     mock_exists.return_value = True
 
     result = get_os_display_string()
@@ -360,7 +360,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.path.exists')
   @patch('src.os_eol.get_linux_version_info')
   def test_get_os_display_string_linux_no_os_release(self, mock_get_version, mock_exists):
-    """/etc/os-release が存在しない場合、(os_name, version) にフォールバックするテスト"""
+    """Fall back to (os_name, version) when /etc/os-release does not exist."""
     mock_exists.return_value = False
     mock_get_version.return_value = ("Ubuntu", "22.04")
 
@@ -373,7 +373,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('builtins.open', mock_open(read_data='NAME="Ubuntu"\nVERSION_ID="22.04"\n'))
   @patch('src.os_eol.get_linux_version_info')
   def test_get_os_display_string_linux_no_pretty_name(self, mock_get_version, mock_exists):
-    """/etc/os-release に PRETTY_NAME がない場合、(os_name, version) にフォールバックするテスト"""
+    """Fall back to (os_name, version) when /etc/os-release has no PRETTY_NAME."""
     mock_exists.return_value = True
     mock_get_version.return_value = ("Ubuntu", "22.04")
 
@@ -384,7 +384,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.name', 'nt')
   @patch('src.os_eol.get_windows_version_info')
   def test_get_os_display_string_windows(self, mock_get_version):
-    """Windows の場合、(os_name, version) を結合して返すテスト"""
+    """On Windows, return (os_name, version) joined."""
     mock_get_version.return_value = ("Windows", "11-24H2")
 
     result = get_os_display_string()
@@ -394,7 +394,7 @@ class TestOSEOL(unittest.TestCase):
   @patch('os.name', 'posix')
   @patch('os.path.exists', side_effect=Exception("boom"))
   def test_get_os_display_string_exception_fallback(self, mock_exists):
-    """例外発生時に Unknown を返すテスト"""
+    """Return Unknown when an exception is raised."""
     result = get_os_display_string()
 
     self.assertEqual(result, "Unknown")

@@ -157,11 +157,11 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.psutil.Process')
   def test_stop_app_no_such_process(self, mock_process):
-    # プロセスが存在しない場合の例外処理をテスト
+    # The process no longer exists
     import psutil
     mock_process.side_effect = psutil.NoSuchProcess(1)
         
-    # 例外が発生してもUnboundLocalErrorが起きないことを確認
+    # No UnboundLocalError even when the exception is raised
     try:
       result = stop_app([{'pid': 1, 'name': 'test.exe'}])
       self.assertEqual(result, [])
@@ -185,7 +185,7 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.os.getenv')
   def test_get_app_startup_command_no_manifest(self, mock_getenv):
-    """manifest.json が存在しない場合のテスト"""
+    """manifest.json does not exist."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       exe_path, args = get_app_startup_command('app1', 'test.exe')
@@ -194,14 +194,14 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.os.getenv', return_value=None)
   def test_get_app_startup_command_no_scoop_env(self, mock_getenv):
-    """SCOOP 環境変数が設定されていない場合のテスト"""
+    """The SCOOP environment variable is not set."""
     exe_path, args = get_app_startup_command('app1', 'test.exe')
     self.assertIsNone(exe_path)
     self.assertIsNone(args)
 
   @patch('src.windows.update_scoop_softwares.os.getenv')
   def test_get_app_startup_command_no_shortcuts(self, mock_getenv):
-    """shortcuts 定義がない場合のテスト"""
+    """The manifest has no shortcuts definition."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       manifest_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
@@ -215,14 +215,14 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.os.getenv')
   def test_get_app_startup_command_with_arguments(self, mock_getenv):
-    """引数付きの shortcuts 定義があるケースのテスト"""
+    """A shortcuts definition with arguments."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       manifest_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
       manifest_path.mkdir(parents=True)
       manifest_file = manifest_path / 'manifest.json'
             
-      # shortcuts 定義を作成（引数付き）
+      # Create a shortcuts definition with arguments
       manifest_data = {
         "version": "1.0",
         "shortcuts": [
@@ -239,14 +239,14 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.os.getenv')
   def test_get_app_startup_command_without_arguments(self, mock_getenv):
-    """引数なしの shortcuts 定義があるケースのテスト"""
+    """A shortcuts definition without arguments."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       manifest_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
       manifest_path.mkdir(parents=True)
       manifest_file = manifest_path / 'manifest.json'
             
-      # shortcuts 定義を作成（引数なし）
+      # Create a shortcuts definition without arguments
       manifest_data = {
         "version": "1.0",
         "shortcuts": [
@@ -263,14 +263,14 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.os.getenv')
   def test_get_app_startup_command_multiple_shortcuts(self, mock_getenv):
-    """複数の shortcuts がある場合のテスト"""
+    """Multiple shortcuts."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       manifest_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
       manifest_path.mkdir(parents=True)
       manifest_file = manifest_path / 'manifest.json'
             
-      # 複数の shortcuts 定義を作成
+      # Create multiple shortcuts definitions
       manifest_data = {
         "version": "1.0",
         "shortcuts": [
@@ -282,7 +282,7 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
       with open(manifest_file, 'w', encoding='utf-8') as f:
         json.dump(manifest_data, f)
             
-      # test.exe を検索
+      # Look up test.exe
       exe_path, args = get_app_startup_command('app1', 'test.exe')
       expected_path = Path(tmpdir) / 'apps' / 'app1' / 'current' / 'bin' / 'test.exe'
       self.assertEqual(exe_path, expected_path)
@@ -293,7 +293,7 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
   @patch('src.windows.update_scoop_softwares.os.path.exists', return_value=True)
   @patch('src.windows.update_scoop_softwares.subprocess.Popen')
   def test_start_app_with_manifest_arguments(self, mock_popen, mock_exists, mock_getenv, mock_get_command):
-    """manifest から引数を取得して起動するテスト"""
+    """Start the app with the arguments taken from the manifest."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       app_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
@@ -302,12 +302,12 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
       exe.parent.mkdir(parents=True)
       exe.write_text('')
             
-      # manifest から引数を返すように設定
+      # Make the manifest lookup return arguments
       mock_get_command.return_value = (exe, ['--arg1', '--arg2'])
             
       start_app('app1', [{'name': 'app.exe'}])
             
-      # 引数付きで起動されることを確認
+      # Started with arguments
       mock_popen.assert_called_with([str(exe), '--arg1', '--arg2'], stdout=unittest.mock.ANY, stderr=unittest.mock.ANY)
 
   @patch('src.windows.update_scoop_softwares.get_app_startup_command')
@@ -315,7 +315,7 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
   @patch('src.windows.update_scoop_softwares.os.path.exists', return_value=True)
   @patch('src.windows.update_scoop_softwares.subprocess.Popen')
   def test_start_app_fallback_without_manifest(self, mock_popen, mock_exists, mock_getenv, mock_get_command):
-    """manifest がない場合は従来の方法で起動するテスト"""
+    """Fall back to starting the executable directly when there is no manifest."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       app_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
@@ -323,43 +323,43 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
       exe = app_path / 'app.exe'
       exe.write_text('')
             
-      # manifest が見つからない場合
+      # The manifest is not found
       mock_get_command.return_value = (None, None)
             
       start_app('app1', [{'name': 'app.exe'}])
             
-      # 引数なしで起動されることを確認
+      # Started without arguments
       mock_popen.assert_called_with([str(exe)], stdout=unittest.mock.ANY, stderr=unittest.mock.ANY)
 
   @patch('src.windows.update_scoop_softwares.os.getenv')
   def test_get_app_startup_command_invalid_shortcuts(self, mock_getenv):
-    """不正な shortcuts データの場合のテスト"""
+    """Invalid shortcuts data."""
     with tempfile.TemporaryDirectory() as tmpdir:
       mock_getenv.return_value = tmpdir
       manifest_path = Path(tmpdir) / 'apps' / 'app1' / 'current'
       manifest_path.mkdir(parents=True)
       manifest_file = manifest_path / 'manifest.json'
             
-      # 不正な shortcuts 定義（文字列が含まれる）
+      # Invalid shortcuts definitions (including a string)
       manifest_data = {
         "version": "1.0",
         "shortcuts": [
-          "invalid",  # list ではない
-          ["", "Empty Path"],  # 空の exe_path
-          [123, "Number Path"],  # 数値の exe_path
-          ["valid.exe", "Valid App"]  # 有効なエントリ
+          "invalid",  # not a list
+          ["", "Empty Path"],  # empty exe_path
+          [123, "Number Path"],  # numeric exe_path
+          ["valid.exe", "Valid App"]  # valid entry
         ]
       }
       with open(manifest_file, 'w', encoding='utf-8') as f:
         json.dump(manifest_data, f)
             
-      # valid.exe は見つかる
+      # valid.exe is found
       exe_path, args = get_app_startup_command('app1', 'valid.exe')
       expected_path = Path(tmpdir) / 'apps' / 'app1' / 'current' / 'valid.exe'
       self.assertEqual(exe_path, expected_path)
       self.assertEqual(args, [])
             
-      # 不正なエントリは無視される
+      # Invalid entries are ignored
       exe_path, args = get_app_startup_command('app1', 'test.exe')
       self.assertIsNone(exe_path)
       self.assertIsNone(args)
@@ -387,8 +387,8 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
   @patch('src.windows.update_scoop_softwares.subprocess.run', side_effect=OSError('cmd.exe not found'))
   def test_cleanup_scoop_cmd_exe_launch_failure(self, mock_run):
-    # shell=True 経由でも cmd.exe 自体の起動失敗等で OSError が送出される場合があり、
-    # その際も例外を送出せず、終了コード None の失敗として返す (scoop 自体が見つからない場合は returncode != 0 として test_cleanup_scoop_failure と同じ経路になる)
+    # Even with shell=True, OSError can be raised when cmd.exe itself fails to launch.
+    # It must not raise and is returned as a failure with exit code None (a missing scoop is reported as returncode != 0, the same path as test_cleanup_scoop_failure).
     result = cleanup_scoop()
     self.assertEqual(result, [('scoop cleanup *', None), ('scoop cache rm *', None)])
     self.assertEqual(mock_run.call_count, 2)
@@ -410,12 +410,11 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
   @patch('src.windows.update_scoop_softwares.get_scoop_status', return_value=[])
   @patch('src.windows.update_scoop_softwares.update_scoop_repos', return_value=True)
   def test_run_success_passes_operation_system(self, mock_update_repos, mock_get_status, mock_get_running_apps, mock_cleanup, mock_report_winget, mock_get_eol, mock_get_display):
-    """run() が operation_system を全呼び出しに渡すことを確認するテスト
+    """run() passes operation_system to every call.
 
-    `get_running_apps()` は `app_names` が空でも内部で `os.getenv("SCOOP")` を
-    無条件に呼び出すため、モックしないとテスト環境に `SCOOP` 環境変数がない場合に
-    `TypeError` が送出され、`run()` の except ブロック(異常系)に落ちて
-    しまい、意図した正常系を検証できなくなる。そのため明示的にモックする。
+    get_running_apps() calls os.getenv("SCOOP") unconditionally, even when app_names is empty.
+    Without mocking it, a missing SCOOP variable raises TypeError and run() falls into its except block,
+    so the success path would not be exercised.
     """
     github_issue = MagicMock()
 
@@ -429,7 +428,7 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
   @patch('src.windows.update_scoop_softwares.get_os_eol_info', side_effect=Exception("boom"))
   @patch('src.windows.update_scoop_softwares.update_scoop_repos', side_effect=Exception("update failed"))
   def test_run_exception_passes_operation_system(self, mock_update_repos, mock_get_eol, mock_get_display):
-    """run() の例外系でも operation_system が渡されることを確認するテスト"""
+    """run() passes operation_system on the error path too."""
     github_issue = MagicMock()
 
     run(github_issue, "test-host")
@@ -439,7 +438,7 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
 
 
 class TestRunStatusFlow(unittest.TestCase):
-  """run() の最終ステータス・警告コメント・winget 表示の関係を確認するテスト"""
+  """The relation between the final status, the warning comment and the winget report in run()."""
 
   MODULE = 'src.windows.update_scoop_softwares'
 

@@ -33,6 +33,7 @@ PIN_LIST_EN = (
   "Pinned A  Vendor.PinA  1.0      winget  Pinning\n"
 )
 
+# Real-world fixture: `winget pin list` output on a Japanese-locale system
 PIN_LIST_JA = (
   "名前        ID           バージョン  ソース  ピンの種類\n"
   "--------------------------------------------------------\n"
@@ -42,11 +43,11 @@ PIN_LIST_JA = (
 
 class TestGetWingetOutdated(unittest.TestCase):
   def test_script_forces_utf8_output(self):
-    # リダイレクト時の pwsh はコンソールのコードページ (日本語環境では cp932) で出力するため、UTF-8 を明示する必要がある
+    # When redirected, pwsh writes in the console code page (cp932 on Japanese Windows), so UTF-8 must be forced explicitly
     self.assertTrue(POWERSHELL_SCRIPT.startswith("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n"))
 
   def test_script_stops_on_cmdlet_errors(self):
-    # 非終了エラーのまま終了コード 0 になると、取得失敗が「未更新なし」に見えてしまう
+    # Non-terminating errors would exit with code 0 and make a failed lookup look like "nothing outdated"
     self.assertIn("$ErrorActionPreference = 'Stop'\n", POWERSHELL_SCRIPT)
 
   @patch("src.windows.winget_outdated.subprocess.run")

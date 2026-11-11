@@ -13,7 +13,7 @@ function Test-Command {
 Test-Command git
 Test-Command python3
 
-# $env:ISSUE_NUMBER が定義されていない場合は、スクリプトを終了
+# Exit when $env:ISSUE_NUMBER is not defined
 if (-not $env:ISSUE_NUMBER) {
     Write-Host "ISSUE_NUMBER is not defined. Exiting script."
     exit 1

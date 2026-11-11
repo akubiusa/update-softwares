@@ -1,4 +1,4 @@
-"""OS End-of-Life (EOL) 情報を取得するモジュール"""
+"""Look up OS End-of-Life (EOL) information."""
 import os
 import platform
 import requests
@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 def get_os_version_info() -> Tuple[str, str]:
   """
-  OS のバージョン情報を取得する
+  Get the OS name and version.
     
   Returns:
-    Tuple[str, str]: (OS名, バージョン)
+    Tuple[str, str]: (OS name, version)
   """
   if os.name == 'nt':
     # Windows
@@ -27,16 +27,17 @@ def get_os_version_info() -> Tuple[str, str]:
 
 def get_windows_version_info() -> Tuple[str, str]:
   """
-  Windows のバージョン情報を取得する
+  Get the Windows version.
 
-  Windows レジストリからビルド番号と DisplayVersion を読み取り、
-  Windows のバージョンを判定します。
-  詳細バージョン (例: 21H2, 22H2, 23H2, 24H2, 25H2) の取得を試みます。
+  Read the build number and DisplayVersion from the Windows registry
+  to determine the Windows version.
+  A detailed version (for example 21H2, 22H2, 23H2, 24H2, 25H2) is included when available.
 
   Returns:
-    Tuple[str, str]: ("Windows", "バージョン番号")
-    バージョン番号は "10-22H2" や "11-24H2" のような形式
-    詳細バージョンが不明な場合は "10" または "11"
+    Tuple[str, str]: ("Windows", version)
+    The version looks like "10-22H2" or "11-24H2"
+    and is "10" or "11" when the detailed version is unknown.
+    Returns ("Windows", "Unknown") if the registry cannot be read.
   """
   try:
     import winreg
@@ -65,22 +66,19 @@ def get_windows_version_info() -> Tuple[str, str]:
 
 def get_linux_version_info() -> Tuple[str, str]:
   """
-  Linux のバージョン情報を取得する
+  Get the Linux distribution name and version.
     
-  /etc/os-release ファイルから NAME と VERSION_ID を読み取り、
-  ディストリビューション名とバージョンを返します。
-  ファイルが存在しない場合は platform モジュールを使用します。
+  Read NAME and VERSION_ID from /etc/os-release.
+  Fall back to the platform module when the file does not exist.
     
   Returns:
-    Tuple[str, str]: (ディストリビューション名, バージョン)
-    Ubuntu の場合は ("Ubuntu", "22.04") のような形式
-    Debian の場合は ("Debian", "12") のような形式
+    Tuple[str, str]: (distribution name, version)
+    For example ("Ubuntu", "22.04") or ("Debian", "12").
+    Returns ("Linux", "Unknown") if reading the information fails.
     
   Raises:
-    IOError: /etc/os-release の読み取りに失敗した場合
   """
   try:
-    # /etc/os-release から情報を取得
     if os.path.exists('/etc/os-release'):
       with open('/etc/os-release', 'r') as f:
         lines = f.readlines()
@@ -94,7 +92,7 @@ def get_linux_version_info() -> Tuple[str, str]:
       name = os_info.get('NAME', '')
       version = os_info.get('VERSION_ID', '')
             
-      # 主要なディストリビューションを識別
+      # Identify major distributions
       if 'Ubuntu' in name:
         return ("Ubuntu", version)
       elif 'Debian' in name:
@@ -112,10 +110,10 @@ def get_linux_version_info() -> Tuple[str, str]:
       elif 'openSUSE' in name:
         return ("openSUSE", version)
       else:
-        # その他の Linux ディストリビューション
+        # Other distributions
         return (name, version)
         
-    # /etc/os-release がない場合は platform を使用
+    # No /etc/os-release: use the platform module
     return (platform.system(), platform.release())
   except Exception:
     return ("Linux", "Unknown")
@@ -123,17 +121,17 @@ def get_linux_version_info() -> Tuple[str, str]:
 
 def get_os_eol_date_from_api(os_name: str, version: str, max_retries: int = 3) -> Optional[datetime]:
   """
-  endoflife.date API から OS の EOL 日を取得する
+  Fetch the OS EOL date from the endoflife.date API.
     
   Args:
-    os_name: OS 名
-    version: バージョン
-    max_retries: 最大リトライ回数（デフォルト: 3）
+    os_name: OS name
+    version: OS version
+    max_retries: Maximum number of attempts (default: 3)
         
   Returns:
-    Optional[datetime]: EOL 日 (取得できない場合は None)
+    Optional[datetime]: EOL date, or None if it cannot be determined
   """
-  # OS 名を endoflife.date の product 名にマッピング
+  # Map OS names to endoflife.date product names
   product_mapping = {
     "Windows": "windows",
     "Ubuntu": "ubuntu",
@@ -150,10 +148,8 @@ def get_os_eol_date_from_api(os_name: str, version: str, max_retries: int = 3) -
   if product is None:
     return None
     
-  # リトライロジック
   for retry in range(max_retries):
     try:
-      # endoflife.date API を呼び出し
       url = f"https://endoflife.date/api/{product}/{version}.json"
       response = requests.get(url, timeout=30)
             
@@ -161,10 +157,10 @@ def get_os_eol_date_from_api(os_name: str, version: str, max_retries: int = 3) -
         data = response.json()
         eol_str = data.get('eol')
 
-        # eol は YYYY-MM-DD 形式または boolean
+        # eol is either a YYYY-MM-DD string or a boolean
         if isinstance(eol_str, bool):
           if not eol_str:
-            # False の場合はまだ EOL していない（日付不明）
+            # False means the product has not reached EOL (no date available)
             return None
           logger.warning(f"Unexpected boolean EOL value: {eol_str}")
           return None
@@ -179,13 +175,13 @@ def get_os_eol_date_from_api(os_name: str, version: str, max_retries: int = 3) -
         logger.warning(f"Unexpected EOL value type: {type(eol_str)}")
         return None
       elif response.status_code == 404:
-        # 404 は API にデータがないことを示すのでリトライ不要
+        # 404 means the API has no data for this version, so retrying is pointless
         return None
             
-      # その他のステータスコードはリトライする
+      # Retry on any other status code
       if retry < max_retries - 1:
         logger.debug(f"API request failed with status {response.status_code}, retrying... (attempt {retry + 1}/{max_retries})")
-        time.sleep(1 * (retry + 1))  # 指数バックオフ
+        time.sleep(1 * (retry + 1))  # linear backoff
         continue
             
       return None
@@ -207,32 +203,31 @@ def get_os_eol_date_from_api(os_name: str, version: str, max_retries: int = 3) -
 
 def get_os_eol_date(os_name: str, version: str) -> Optional[datetime]:
   """
-  OS の EOL 日を取得する
+  Get the EOL date of the OS.
     
-  endoflife.date API から EOL 情報を取得します。
-  API から取得できない場合は None を返します。
+  The date comes from the endoflife.date API.
+  Returns None when the API does not provide it.
     
   Args:
-    os_name: OS 名
-    version: バージョン
+    os_name: OS name
+    version: OS version
         
   Returns:
-    Optional[datetime]: EOL 日 (API から取得できない場合は None)
+    Optional[datetime]: EOL date, or None if the API does not provide it
   """
-  # API から取得を試みる
   return get_os_eol_date_from_api(os_name, version)
 
 
 
 def format_eol_info(eol_date: Optional[datetime]) -> Tuple[str, bool]:
   """
-  EOL 情報をフォーマットする
+  Format the EOL information for the Issue table.
     
   Args:
-    eol_date: EOL 日
+    eol_date: EOL date, or None if unknown
         
   Returns:
-    Tuple[str, bool]: (フォーマットされた文字列, 90日未満かどうか)
+    Tuple[str, bool]: (formatted string, whether EOL is already past or less than 90 days away)
   """
   if eol_date is None:
     return ("不明", False)
@@ -240,11 +235,11 @@ def format_eol_info(eol_date: Optional[datetime]) -> Tuple[str, bool]:
   now = datetime.now()
   days_until_eol = (eol_date - now).days
     
-  # すでに EOL を過ぎている場合
+  # EOL has already passed
   if days_until_eol < 0:
     return (f"**{eol_date.strftime('%Y/%m/%d')} (期限切れ)**", True)
     
-  # EOL まで 90 日未満
+  # Less than 90 days until EOL
   is_critical = days_until_eol < 90
     
   if is_critical:
@@ -255,10 +250,10 @@ def format_eol_info(eol_date: Optional[datetime]) -> Tuple[str, bool]:
 
 def get_os_eol_info() -> Tuple[str, bool]:
   """
-  現在の OS の EOL 情報を取得する
+  Get the EOL information of the current OS.
     
   Returns:
-    Tuple[str, bool]: (EOL 情報文字列, 90日未満かどうか)
+    Tuple[str, bool]: (EOL information string, whether EOL is already past or less than 90 days away)
   """
   os_name, version = get_os_version_info()
   eol_date = get_os_eol_date(os_name, version)
@@ -267,22 +262,22 @@ def get_os_eol_info() -> Tuple[str, bool]:
 
 def get_os_display_string() -> str:
   """
-  「OS」列に表示するための OS 名・バージョン文字列を取得する
+  Get the OS name and version string shown in the "OS" column.
 
-  Linux の場合は /etc/os-release の PRETTY_NAME をそのまま返す。
-  取得できない場合や Windows の場合は、get_linux_version_info() /
-  get_windows_version_info() が返す (os_name, version) を
-  "{os_name} {version}" 形式に整形して返す。
+  On Linux, return PRETTY_NAME from /etc/os-release as is.
+  When it is unavailable, or on Windows, return the (os_name, version) pair from
+  get_linux_version_info() / get_windows_version_info()
+  formatted as "{os_name} {version}".
 
   Returns:
-    str: OS 表示文字列。取得に失敗した場合は "Unknown"
+    str: The display string, or "Unknown" if it cannot be obtained
   """
   try:
     if os.name == 'nt':
       os_name, version = get_windows_version_info()
       return f"{os_name} {version}"
 
-    # Linux: /etc/os-release の PRETTY_NAME を優先する
+    # Linux: prefer PRETTY_NAME from /etc/os-release
     if os.path.exists('/etc/os-release'):
       with open('/etc/os-release', 'r') as f:
         lines = f.readlines()
@@ -297,7 +292,7 @@ def get_os_display_string() -> str:
       if pretty_name:
         return pretty_name
 
-    # PRETTY_NAME が取得できない場合は既存の (os_name, version) を整形する
+    # No PRETTY_NAME: format (os_name, version) instead
     os_name, version = get_linux_version_info()
     return f"{os_name} {version}"
   except Exception:

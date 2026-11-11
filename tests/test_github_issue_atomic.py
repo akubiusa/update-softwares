@@ -70,7 +70,7 @@ class TestGitHubIssueAtomic(unittest.TestCase):
   @patch('src.requests.patch')
   @patch('src.requests.get')
   def test_atomic_update_with_retry_overwrites_operation_system(self, mock_get, mock_patch):
-    """operation_system を渡した場合に OS 列が上書きされることを確認するテスト"""
+    """The OS column is overwritten when operation_system is passed."""
     initial_body = "| ⏳ | Computer1 | Linux | apt | 0 | 0 | <!-- update-softwares#Computer1#apt -->"
 
     mock_get_response = MagicMock()
@@ -102,7 +102,7 @@ class TestGitHubIssueAtomic(unittest.TestCase):
   @patch('src.requests.patch')
   @patch('src.requests.get')
   def test_atomic_update_with_retry_keeps_operation_system_when_none(self, mock_get, mock_patch):
-    """operation_system を渡さない場合、既存の OS 列の値が維持されることを確認するテスト"""
+    """The existing OS column value is kept when operation_system is omitted."""
     initial_body = "| ⏳ | Computer1 | Linux | apt | 0 | 0 | <!-- update-softwares#Computer1#apt -->"
 
     mock_get_response = MagicMock()
@@ -129,7 +129,7 @@ class TestGitHubIssueAtomic(unittest.TestCase):
 
   @patch('src.requests.get')
   def test_update_software_update_row_overwrites_operation_system(self, mock_get):
-    """update_software_update_row() で operation_system が上書きされることを確認するテスト"""
+    """update_software_update_row() overwrites operation_system."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
@@ -159,7 +159,7 @@ class TestGitHubIssueAtomic(unittest.TestCase):
   @patch('src.requests.patch')
   @patch('src.requests.get')
   def test_atomic_update_with_retry_overwrites_operation_system_new_format(self, mock_get, mock_patch):
-    """新フォーマット(os_eol 列あり)の行でも operation_system が上書きされることを確認するテスト"""
+    """operation_system is overwritten for rows in the new format (with an os_eol column) as well."""
     initial_body = "| ⏳ | Computer1 | Linux | apt | 0 | 0 | 不明 | <!-- update-softwares#Computer1#apt -->"
 
     mock_get_response = MagicMock()
@@ -333,7 +333,7 @@ class TestGitHubIssueAtomic(unittest.TestCase):
         
     github_issue = GitHubIssue(self.repo_name, self.issue_number, self.github_token)
         
-    # 新フォーマット (OS EOL 列あり)
+    # New format (with an OS EOL column)
     body_with_eol = (
       "| ⏳ | Computer1 | Linux | apt | 0 | 0 | 2027/04/30 (500 日後) | <!-- update-softwares#Computer1#apt -->\n"
       "| 🔴 | Computer2 | Windows | scoop | 5 | 0 | **2025/10/14 (50 日後)** | <!-- update-softwares#Computer2#scoop -->"
@@ -343,12 +343,12 @@ class TestGitHubIssueAtomic(unittest.TestCase):
         
     self.assertEqual(len(software_updates), 2)
         
-    # 1つ目のエントリ (OS EOL あり)
+    # First entry (with OS EOL)
     self.assertEqual(software_updates[0]["computer_name"], "Computer1")
     self.assertEqual(software_updates[0]["package_manager"], "apt")
     self.assertEqual(software_updates[0]["markdown"]["os_eol"], "2027/04/30 (500 日後)")
         
-    # 2つ目のエントリ (OS EOL あり、クリティカル)
+    # Second entry (with OS EOL, critical)
     self.assertEqual(software_updates[1]["computer_name"], "Computer2")
     self.assertEqual(software_updates[1]["package_manager"], "scoop")
     self.assertEqual(software_updates[1]["markdown"]["os_eol"], "**2025/10/14 (50 日後)**")

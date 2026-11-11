@@ -17,14 +17,14 @@ MAX_RETRIES = 5
 RETRY_INTERVAL_SECONDS = 5
 
 def run_scoop_with_retry(args, description):
-  """scoop コマンドを実行し、終了コードが 0 以外または起動に失敗した場合はリトライする。
+  """Run a scoop command, retrying when it exits non-zero or fails to launch.
 
   Args:
-    args: scoop に渡す引数のリスト (例: ["update", "app"])。
-    description: ログ表示用の対象の説明。
+    args: Arguments passed to scoop (for example ["update", "app"]).
+    description: Description of the operation, used in console messages.
 
   Returns:
-    bool: いずれかの試行で終了コード 0 になった場合は True、全試行が失敗した場合は False。
+    bool: True if any attempt exits with 0, False if every attempt fails.
   """
   for attempt in range(1, MAX_RETRIES + 1):
     try:
@@ -44,22 +44,22 @@ def run_scoop_with_retry(args, description):
   return False
 
 def update_scoop_repos():
-  """scoop update を実行し、リポジトリを更新する。失敗した場合は MAX_RETRIES 回まで試行する。
+  """Run scoop update to refresh the buckets, retrying up to MAX_RETRIES times.
 
   Returns:
-    bool: 更新に成功した場合は True、全試行が失敗した場合は False。
+    bool: True if the update succeeded, False if every attempt failed.
   """
   return run_scoop_with_retry(["update"], "Scoop update")
 
 def get_scoop_status():
     raw_output = os.popen("scoop status").read()
 
-    # ANSIカラーコードを除去
+    # Strip ANSI color codes
     cleaned_output = re.sub(r'\x1b\[[0-9;]*m', '', raw_output)
 
     lines = cleaned_output.strip().splitlines()
 
-    # ヘッダー行のインデックスを検出
+    # Find the header row
     header_index = None
     for i, line in enumerate(lines):
         if 'Name' in line and 'Installed Version' in line:
@@ -72,7 +72,7 @@ def get_scoop_status():
     header_line = lines[header_index]
     data_lines = lines[header_index + 2:]
 
-    # 列の開始位置をヘッダー行から決定（例: Name starts at index 0, next col starts at first space after word）
+    # Take each column's start position from the header row
     columns = ['Name', 'Installed Version', 'Latest Version', 'Missing Dependencies', 'Info']
     col_positions = []
     for col in columns:
@@ -82,10 +82,10 @@ def get_scoop_status():
         else:
             col_positions.append(None)
 
-    # 最後の列の終了位置は次の列開始位置がないので None とする
+    # The last column has no following column, so its end is None
     col_positions.append(None)
 
-    # 実データ行のパース
+    # Parse the data rows
     results = []
     for line in data_lines:
         if not line.strip():
@@ -106,7 +106,6 @@ def get_scoop_status():
     return results
 
 def post_github_comment(github_issue, hostname, status_results):
-  # GitHub Issue にコメントを投稿する
   comment_body = textwrap.dedent("""
   ## {markdown_computer_name} : scoop upgrade
 
@@ -149,7 +148,7 @@ def get_processes():
     return results
 
 def get_running_apps(app_names):
-    # アップグレード対象のアプリケーションのうち、実行中のアプリケーションとそのプロセス名を取得する
+    # Return the running processes of the apps to be upgraded, keyed by app name
     running_app_pids = {}
     scoop_path = Path(os.getenv("SCOOP"))
     apps_path = scoop_path / "apps"
@@ -161,7 +160,7 @@ def get_running_apps(app_names):
         if not app_dir.exists():
             continue
 
-        # exe app_dir の下にあるか確認
+        # A process belongs to the app if its exe is under the app directory
         app_running_processes = [
             {"pid": process["pid"], "name": process["name"], "exe": process["exe"]}
             for process in running_processes
@@ -174,7 +173,6 @@ def get_running_apps(app_names):
     return running_app_pids
 
 def update_scoop_apps(app_names):
-    # Scoop で管理されているアプリケーションをアップグレードする
     results = {}
     for app_name in app_names:
         print(f"Updating {app_name}...")
@@ -185,14 +183,13 @@ def update_scoop_apps(app_names):
     return results
 
 def stop_app(app_processes):
-    # アプリケーションを停止する
     stopped_processes = []
     for process in app_processes:
         pid = process["pid"]
-        process_name = process.get("name", f"PID-{pid}")  # 事前に名前を取得
+        process_name = process.get("name", f"PID-{pid}")  # fallback name in case the process exits before name() is read
         try:
             psutil_process = psutil.Process(pid)
-            process_name = psutil_process.name()  # より正確な名前があれば更新
+            process_name = psutil_process.name()  # prefer the live name
             psutil_process.terminate()
             stopped_processes.append(process_name)
             print(f"Stopped {process_name}.")
@@ -203,14 +200,14 @@ def stop_app(app_processes):
 
 def get_app_startup_command(app_name, process_name):
     """
-    manifest.json から shortcuts 定義を読み取り、起動コマンドを取得する
+    Get the startup command from the shortcuts definition in manifest.json.
     
     Args:
-        app_name: アプリケーション名
-        process_name: プロセス名（実行ファイル名）
+        app_name: Application name
+        process_name: Process name (executable file name)
     
     Returns:
-        tuple: (実行ファイルパス, 引数リスト) または (None, None)
+        tuple: (executable path, argument list), or (None, None) if not found
     """
     scoop_path_str = os.getenv("SCOOP")
     if not scoop_path_str:
@@ -227,29 +224,27 @@ def get_app_startup_command(app_name, process_name):
         with open(manifest_path, 'r', encoding='utf-8') as f:
             manifest = json.load(f)
         
-        # shortcuts 定義を確認
         shortcuts = manifest.get("shortcuts")
         if not shortcuts:
             return None, None
         
-        # process_name に対応する shortcut を探す
+        # Find the shortcut that matches process_name
         for shortcut in shortcuts:
             if not isinstance(shortcut, list) or len(shortcut) < 2:
                 continue
             
-            # shortcut の形式: [exe_path, shortcut_name, arguments...]
+            # Shortcut format: [exe_path, shortcut_name, arguments...]
             exe_path_str = shortcut[0]
             if not exe_path_str or not isinstance(exe_path_str, str):
                 continue
             
-            # Windows パスをクロスプラットフォーム対応に変換
+            # Normalize Windows path separators
             exe_path_normalized = exe_path_str.replace('\\', os.sep)
             exe_name = Path(exe_path_normalized).name
             
-            # プロセス名と一致するか確認
             if exe_name.lower() == process_name.lower():
                 full_exe_path = scoop_path / "apps" / app_name / "current" / exe_path_normalized
-                # shortcut[2:]で引数を取得（shortcut名の後の要素）
+                # Arguments are the elements after the shortcut name
                 args = shortcut[2:] if len(shortcut) > 2 else []
                 return full_exe_path, args
         
@@ -259,8 +254,7 @@ def get_app_startup_command(app_name, process_name):
         return None, None
 
 def start_app(app_name, app_processes):
-    # アプリケーションを起動する
-    # manifest.json の shortcuts 定義を参照し、引数付きで起動する
+    # Restart the app using the shortcuts definition in manifest.json (with arguments)
     scoop_path = Path(os.getenv("SCOOP"))
     apps_path = scoop_path / "apps"
     app_dir = apps_path / app_name
@@ -272,22 +266,20 @@ def start_app(app_name, app_processes):
     for process in app_processes:
         process_name = process["name"]
         
-        # manifest.json から起動コマンドを取得
         exe_path, args = get_app_startup_command(app_name, process_name)
         
-        # manifest に定義がない場合は従来の方法でフォールバック
+        # No definition in the manifest: fall back to the executable in current/
         if exe_path is None:
             exe_path = current_dir / process_name
             args = []
         
-        exe_path_str = str(exe_path)  # ここで一度変換
+        exe_path_str = str(exe_path)
         
         if not os.path.exists(exe_path_str):
             print(f"Executable not found: {exe_path_str}")
             continue
 
         try:
-            # 実行ファイルパスと引数を結合してコマンドを構築
             command = [exe_path_str] + args
             subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if args:
@@ -298,11 +290,11 @@ def start_app(app_name, app_processes):
             print(f"Failed to start {exe_path_str}: {e}")
 
 def cleanup_scoop() -> list[tuple[str, int | None]]:
-    """scoop のクリーンアップとキャッシュ削除を実行する。
+    """Run scoop cleanup and remove the scoop cache.
 
     Returns:
-        list[tuple[str, int | None]]: 失敗したコマンドと終了コードのリスト。
-            すべて成功した場合は空リスト。起動自体に失敗した場合の終了コードは None。
+        list[tuple[str, int | None]]: Failed commands with their exit codes.
+            Empty if everything succeeded. The exit code is None when the command failed to launch.
     """
     commands = [
         ["scoop", "cleanup", "*"],
@@ -325,14 +317,14 @@ def cleanup_scoop() -> list[tuple[str, int | None]]:
     return failures
 
 def post_cleanup_warning(github_issue, hostname, cleanup_failures):
-  """scoop のクリーンアップ失敗を GitHub Issue にコメントする。
+  """Comment the scoop cleanup failures on the GitHub Issue.
 
-  使用中ファイルが原因のことが多いため警告扱いとし、stderr やアプリ名は載せない。
+  Failures are usually caused by files in use, so they are reported as a warning, without stderr or app names.
 
   Args:
-    github_issue: コメント先の GitHubIssue。
-    hostname: 実行中のホスト名。
-    cleanup_failures: cleanup_scoop() の戻り値 (失敗したコマンドと終了コードのリスト)。
+    github_issue: The GitHubIssue to comment on.
+    hostname: Host name of the running machine.
+    cleanup_failures: Return value of cleanup_scoop() (failed commands with exit codes).
   """
   rows = ["| Command | Exit code |", "| --- | --- |"]
   for command_line, returncode in cleanup_failures:
@@ -351,9 +343,7 @@ def post_cleanup_warning(github_issue, hostname, cleanup_failures):
 
 def run(github_issue, hostname) -> None:
     try:
-        # OS EOL 情報を取得
         os_eol_info, is_critical = get_os_eol_info()
-        # OS 表示文字列を取得
         os_display = get_os_display_string()
 
         # Set initial status to running
@@ -409,7 +399,7 @@ def run(github_issue, hostname) -> None:
 
         merged_results = {**not_running_apps_results, **running_apps_results}
 
-        # scoop はエラーでも終了コード 0 を返すことがあるため、更新後も未更新として残った (更新を試みた) アプリは失敗とする
+        # scoop can exit with 0 even on errors, so an app we tried to update that is still outdated counts as failed
         remaining_status_results = get_scoop_status()
         remaining_app_names = {app["name"] for app in remaining_status_results}
         for app_name in merged_results:
@@ -433,7 +423,7 @@ def run(github_issue, hostname) -> None:
             operation_system=os_display,
         )
 
-        # クリーンアップは最終ステータスの確定後に行い、ハングしても Issue を running のまま残さない。失敗は警告扱いとし、ステータスには影響させない
+        # Cleanup runs after the final status is set so a hang cannot leave the Issue as running; failures only produce a warning and do not affect the status
         cleanup_failures = cleanup_scoop()
         if cleanup_failures:
             try:
@@ -454,13 +444,11 @@ def run(github_issue, hostname) -> None:
         logger.error(f"An error occurred during the upgrade: {e}")
         logger.error(traceback.format_exc())
         
-        # OS EOL 情報を取得 (エラー時も含める)
         try:
             os_eol_info, is_critical = get_os_eol_info()
         except Exception:
             os_eol_info = "不明"
             is_critical = False
-        # OS 表示文字列を取得 (エラー時も含める)
         os_display = get_os_display_string()
 
         # Set error status atomically

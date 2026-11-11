@@ -48,7 +48,7 @@ fi
 
 install -d -m 700 /opt/update-softwares/logs
 
-# Debian/Ubuntu では ensurepip が python3-venv にのみ含まれる
+# On Debian/Ubuntu, ensurepip is only included in python3-venv
 if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
   if type apt >/dev/null 2>&1; then
     apt update
@@ -60,7 +60,7 @@ if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
 fi
 
 # create venv and install requirements
-# venv/bin/pip が残っていても pip モジュールが無い venv があるため、pip が実際に動くかで判定する
+# A venv can have venv/bin/pip without a working pip module, so check that pip actually runs
 if ! venv/bin/python3 -m pip --version >/dev/null 2>&1; then
   python3 -m venv --clear venv
 fi
