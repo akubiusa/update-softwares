@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from subprocess import CalledProcessError
 import os
 
-from src.linux.update_apt_softwares import is_root, run_apt_update, get_apt_full_upgrade_target, run_apt_full_upgrade, _is_installed_version, is_dpkg_broken, run_dpkg_configure
+from src.linux.update_apt_softwares import is_root, run_apt_update, get_apt_full_upgrade_target, run_apt_full_upgrade, _is_installed_version, is_dpkg_broken, run_dpkg_configure, run
 
 class TestUpdateAptSoftwares(unittest.TestCase):
   # Success: running as root
@@ -381,6 +381,36 @@ class TestUpdateAptSoftwares(unittest.TestCase):
 
     self.assertFalse(run_dpkg_configure())
     mock_logger.error.assert_called_once()
+
+  def _run_with_upgrade_result(self, upgrade_ok):
+    github_issue = MagicMock()
+    module = "src.linux.update_apt_softwares"
+    with patch(f"{module}.is_root", return_value=True), \
+        patch(f"{module}.get_os_eol_info", return_value=("", False)), \
+        patch(f"{module}.get_os_display_string", return_value="Ubuntu"), \
+        patch(f"{module}.is_dpkg_broken", return_value=False), \
+        patch(f"{module}.run_apt_update"), \
+        patch(f"{module}.get_apt_full_upgrade_target", return_value=("", ["pkg"], [], [])), \
+        patch(f"{module}.post_github_comment"), \
+        patch(f"{module}.run_apt_full_upgrade", return_value=upgrade_ok), \
+        patch(f"{module}.time.sleep"), \
+        patch(f"{module}.os.system") as mock_system:
+      run(github_issue, "host")
+    return github_issue, mock_system
+
+  # Failure: a failed dist-upgrade must not reboot the machine
+  def test_run_does_not_reboot_when_upgrade_fails(self):
+    github_issue, mock_system = self._run_with_upgrade_result(False)
+
+    mock_system.assert_not_called()
+    self.assertEqual(github_issue.atomic_update_with_retry.call_args.kwargs["status"], "failed")
+
+  # Success: a successful dist-upgrade reboots the machine
+  def test_run_reboots_when_upgrade_succeeds(self):
+    github_issue, mock_system = self._run_with_upgrade_result(True)
+
+    mock_system.assert_called_once_with("shutdown -r 0")
+    self.assertEqual(github_issue.atomic_update_with_retry.call_args.kwargs["status"], "success")
 
   def test_is_installed_version(self):
     self.assertFalse(_is_installed_version(None))
