@@ -147,7 +147,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
 
   # Failure: os.system raises an exception
   @patch("os.system")
-  def test_run_apt_full_upgrade_failure(self, mock_system):
+  def test_run_apt_full_upgrade_exception(self, mock_system):
     mock_system.side_effect = Exception("Upgrade failed")
 
     result = run_apt_full_upgrade()
