@@ -1,10 +1,10 @@
+import logging
 import os
 from pathlib import Path
 import re
 import subprocess
 import textwrap
 import time
-from venv import logger
 import json
 
 import psutil
@@ -12,6 +12,8 @@ import traceback
 
 from ..os_eol import get_os_eol_info, get_os_display_string
 from .winget_outdated import report_winget_outdated
+
+logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 5
 RETRY_INTERVAL_SECONDS = 5
