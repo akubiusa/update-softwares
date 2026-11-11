@@ -28,7 +28,7 @@ function check_command() {
   fi
 }
 
-if [ -z "$ISSUE_NUMBER" ]; then
+if [ -z "${ISSUE_NUMBER:-}" ]; then
   echo "ISSUE_NUMBER is not defined. Exiting script."
   exit 1
 fi
