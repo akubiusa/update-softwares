@@ -54,7 +54,7 @@ A log file `YYYY-MM-DD.log` is written to the log directory (DEBUG level). INFO 
 
 Both scripts need `ISSUE_NUMBER` to be set, clone or update this repository on each run, set `UPDATE_SOFTWARES_LOG_DIR`, and then run `python -m src`.
 
-- `update-softwares.sh` (Linux, run as root): clones into `/opt/update-softwares`, offers to install `git` and `python3`, creates a virtual environment, installs `requirements.txt`, and runs the tool.
+- `update-softwares.sh` (Linux, run as root): clones into `/opt/update-softwares`, offers to install `git` and `python3`, installs `python3-venv` with apt when `ensurepip` is unavailable, creates a virtual environment (recreated with `python3 -m venv --clear venv` when its pip does not run), installs `requirements.txt`, and runs the tool.
 - `update-softwares.ps1` (Windows): clones into `%USERPROFILE%\update-softwares` and runs the tool with `python`. It does not install `requirements.txt`, so install the dependencies beforehand.
 
 ## Windows: outdated winget apps
@@ -98,7 +98,7 @@ List the pins with `winget pin list`.
 
 ```bash
 pip install -r requirements.txt pytest
-PYTHONPATH=. pytest tests/
+pytest tests/
 ```
 
-`PYTHONPATH=.` is required because `pytest.ini` starts with a `[tool:pytest]` header (the `setup.cfg` form), which pytest ignores in `pytest.ini`, so its `pythonpath = .` setting does not apply. The same tests also run with `python3 -m unittest discover -s tests -p "test_*.py"`.
+The same tests also run with `python3 -m unittest discover -s tests -p "test_*.py"`.
