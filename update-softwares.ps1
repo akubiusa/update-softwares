@@ -34,4 +34,11 @@ else {
     git pull
 }
 
+# install dependencies (native command failures are not caught by $ErrorActionPreference)
+python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to install requirements.txt"
+    exit 1
+}
+
 python -m src $env:ISSUE_NUMBER
