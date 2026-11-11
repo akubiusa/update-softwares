@@ -37,14 +37,14 @@ class GitHubIssue:
 
   def _get_checkmark(self, status, os_eol_critical=False):
     """
-    ステータスとEOL状態からチェックマークを取得する
+    Get the checkmark for a status and EOL state.
     
     Args:
-      status: ステータス ("success", "running", "failed")
-      os_eol_critical: EOL がクリティカル (90 日未満) かどうか
+      status: One of "success", "running", "failed"
+      os_eol_critical: Whether EOL is critical (already past or less than 90 days away)
       
     Returns:
-      str: チェックマーク文字列
+      str: The checkmark string
     """
     if os_eol_critical:
       return "🔴"
@@ -52,17 +52,17 @@ class GitHubIssue:
   
   def _build_markdown_row(self, software_update):
     """
-    ソフトウェア更新情報から Markdown テーブル行を構築する
+    Build a Markdown table row from software update information.
     
     Args:
-      software_update: ソフトウェア更新情報の辞書
+      software_update: Software update information dictionary
       
     Returns:
-      str: フォーマットされた Markdown テーブル行
+      str: The formatted Markdown table row
     """
     markdown = software_update["markdown"]
     
-    # OS EOL 列がある場合とない場合で処理を分ける
+    # The row has an OS EOL column only in the new format
     if "os_eol" in markdown:
       return "| " + " | ".join([
         markdown["checkmark"],
@@ -95,11 +95,9 @@ class GitHubIssue:
         software_update["markdown"]["upgraded"] = upgraded
         software_update["markdown"]["failed"] = failed
 
-        # OS EOL 情報がある場合は更新
         if os_eol is not None:
           software_update["markdown"]["os_eol"] = os_eol
 
-        # OS 名・バージョン情報がある場合は更新
         if operation_system is not None:
           software_update["markdown"]["operation_system"] = operation_system
 
@@ -133,11 +131,9 @@ class GitHubIssue:
             software_update["markdown"]["upgraded"] = upgraded
             software_update["markdown"]["failed"] = failed
             
-            # OS EOL 情報がある場合は更新
             if os_eol is not None:
               software_update["markdown"]["os_eol"] = os_eol
 
-            # OS 名・バージョン情報がある場合は更新
             if operation_system is not None:
               software_update["markdown"]["operation_system"] = operation_system
 
@@ -210,13 +206,11 @@ class GitHubIssue:
       if m is None:
         continue
 
-      # | で split して、それぞれの値を取得する
       markdown = m.group("markdown")
       split_markdown = markdown.split("|")
       
-      # 8列 (旧フォーマット) または 9列 (新フォーマット: OS EOL 追加) をサポート
+      # Supports 8 columns (old format) and 9 columns (new format with OS EOL)
       if len(split_markdown) == 8:
-        # 旧フォーマット (OS EOL なし)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -238,7 +232,6 @@ class GitHubIssue:
           "package_manager": m.group("package_manager")
         })
       elif len(split_markdown) == 9:
-        # 新フォーマット (OS EOL あり)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -262,17 +255,17 @@ class GitHubIssue:
           "package_manager": m.group("package_manager")
         })
       else:
-        # サポートされていない列数の場合はスキップ
+        # Skip rows with an unsupported number of columns
         continue
 
     return software_updates
 
   def update_issue_body(self):
-    # 最新のissue本文を取得して同時実行時の競合を防ぐ
+    # Fetch the latest Issue body to reduce conflicts with concurrent runs
     self.body = self.__get_issue_body()
     
-    # self.storage_rows の内容を元に、issue の本文を更新する
-    # <!-- update-softwares#computer_name#package_manager --> というコメントを探して、その行を更新する
+    # Rewrite the rows of the body from self.software_updates:
+    # find the lines ending with <!-- update-softwares#computer_name#package_manager --> and replace them
     rows = self.body.split("\n")
     new_rows = []
     for row in rows:
@@ -346,13 +339,11 @@ class GitHubIssue:
       if m is None:
         continue
 
-      # | で split して、それぞれの値を取得する
       markdown = m.group("markdown")
       split_markdown = markdown.split("|")
       
-      # 8列 (旧フォーマット) または 9列 (新フォーマット: OS EOL 追加) をサポート
+      # Supports 8 columns (old format) and 9 columns (new format with OS EOL)
       if len(split_markdown) == 8:
-        # 旧フォーマット (OS EOL なし)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -374,7 +365,6 @@ class GitHubIssue:
           "package_manager": m.group("package_manager")
         })
       elif len(split_markdown) == 9:
-        # 新フォーマット (OS EOL あり)
         checkmark = split_markdown[1].strip()
         view_computer_name = split_markdown[2].strip()
         operation_system = split_markdown[3].strip()
@@ -398,7 +388,7 @@ class GitHubIssue:
           "package_manager": m.group("package_manager")
         })
       else:
-        # サポートされていない列数の場合はスキップ
+        # Skip rows with an unsupported number of columns
         continue
 
     return software_updates

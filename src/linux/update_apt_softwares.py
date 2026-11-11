@@ -26,15 +26,13 @@ def _is_installed_version(value):
 
 
 def is_dpkg_broken() -> bool:
-  """dpkg が中断状態 (dpkg --configure -a が必要な状態) かどうかを判定する。
+  """Detect whether dpkg is in an interrupted state (one that needs dpkg --configure -a).
 
-  dpkg --audit は破損パッケージが存在しなくても終了コード 0 を返すため、
-  check=True は使わず標準出力の有無のみで判定する。
+  dpkg --audit exits with 0 even when there are broken packages, so check=True is not used and only the presence of stdout is checked.
 
   Returns:
-      bool: 中断状態であれば True、正常であれば False。
-          dpkg --audit の実行自体が失敗した場合も False を返す
-          (検出ロジックの不備で apt 更新処理本体を止めないため)。
+      bool: True if dpkg is interrupted, False if it is healthy.
+          Also False when dpkg --audit itself fails to run, so that a detection problem does not block the apt update itself.
   """
   try:
     result = subprocess.run(
@@ -52,12 +50,10 @@ def is_dpkg_broken() -> bool:
 
 
 def run_dpkg_configure() -> bool:
-  """dpkg --configure -a を実行し、未完了のパッケージ設定を修復する。
-
-  既存の apt 実行処理のスタイルに合わせている。
+  """Run dpkg --configure -a to finish unconfigured packages.
 
   Returns:
-      bool: 終了コードが 0 であれば True、それ以外または例外発生時は False。
+      bool: True if the exit code is 0, False otherwise or on an exception.
   """
   try:
     result = os.system("dpkg --configure -a")
@@ -103,6 +99,15 @@ def run_apt_update() -> str:
 
 
 def get_apt_full_upgrade_target():
+  """Simulate apt-get dist-upgrade and parse the packages it would change.
+
+  Returns:
+      tuple: (None, to_upgrade, to_install, to_remove). The first element is always None and only kept for compatibility with existing callers.
+          Each list holds dictionaries with name / installed / candidate (to_remove has no candidate).
+
+  Raises:
+      subprocess.CalledProcessError: If the apt-get simulation exits non-zero.
+  """
   try:
     result = subprocess.run(
       ["apt-get", "-s", "-V", "dist-upgrade"],
@@ -202,7 +207,7 @@ def run_apt_full_upgrade() -> bool:
     return False
 
 def post_github_comment(github_issue, hostname, to_upgrade, to_install, to_remove):
-  # Update the issue body with the upgrade information
+  # Post a comment listing the packages to upgrade, install and remove
   comment_body = textwrap.dedent("""
   ## {markdown_computer_name} : apt upgrade
 
@@ -254,9 +259,7 @@ def run(github_issue, hostname):
     return
 
   try:
-    # OS EOL 情報を取得
     os_eol_info, is_critical = get_os_eol_info()
-    # OS 表示文字列を取得
     os_display = get_os_display_string()
 
     logger.info("Starting apt update and full upgrade...")
@@ -364,13 +367,11 @@ def run(github_issue, hostname):
     os.system("shutdown -r 0")
   except Exception as e:
     logger.error(f"An error occurred during the upgrade: {e}")
-    # OS EOL 情報を取得 (エラー時も含める)
     try:
       os_eol_info, is_critical = get_os_eol_info()
     except Exception:
       os_eol_info = "不明"
       is_critical = False
-    # OS 表示文字列を取得 (エラー時も含める)
     os_display = get_os_display_string()
 
     # Set error status atomically

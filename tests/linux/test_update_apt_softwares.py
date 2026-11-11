@@ -6,19 +6,19 @@ import os
 from src.linux.update_apt_softwares import is_root, run_apt_update, get_apt_full_upgrade_target, run_apt_full_upgrade, _is_installed_version, is_dpkg_broken, run_dpkg_configure
 
 class TestUpdateAptSoftwares(unittest.TestCase):
-  # 正常系: root権限での実行確認
+  # Success: running as root
   @unittest.skipIf(os.name == 'nt', "Unix/Linux-specific test")
   @patch("os.geteuid", return_value=0)
   def test_is_root(self, mock_geteuid):
     self.assertTrue(is_root())
 
-  # 異常系: root権限でない場合の確認
+  # Failure: not running as root
   @unittest.skipIf(os.name == 'nt', "Unix/Linux-specific test")
   @patch("os.geteuid", return_value=1000)
   def test_is_not_root(self, mock_geteuid):
     self.assertFalse(is_root())
 
-  # 正常系: aptのキャッシュ更新
+  # Success: apt cache update
   @patch("subprocess.run")
   def test_run_apt_update(self, mock_run):
     mock_result = MagicMock()
@@ -35,7 +35,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     )
     self.assertEqual(output, "Fetched 0 B")
 
-  # 異常系: aptキャッシュ更新の失敗
+  # Failure: apt cache update fails
   @patch("subprocess.run")
   def test_run_apt_update_failure(self, mock_run):
     mock_run.side_effect = CalledProcessError(1, ["apt-get", "update"])
@@ -43,7 +43,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     with self.assertRaises(CalledProcessError):
       run_apt_update()
 
-  # 正常系: アップグレード対象のパッケージ取得
+  # Success: collect packages to upgrade
   @patch("subprocess.run")
   def test_get_apt_full_upgrade_target(self, mock_run):
     mock_result = MagicMock()
@@ -66,7 +66,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     self.assertEqual(len(to_remove), 1)
     self.assertEqual(to_remove[0]["name"], "oldpkg")
 
-  # 正常系: アップグレード対象がない場合の確認
+  # Success: nothing to upgrade
   @patch("subprocess.run")
   def test_get_apt_full_upgrade_target_no_upgrades(self, mock_run):
     mock_result = MagicMock()
@@ -103,7 +103,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     self.assertEqual(len(to_install), 0)
     self.assertEqual(len(to_remove), 0)
 
-  # 正常系: インストール対象や削除対象のパッケージがある場合
+  # Success: packages to install or remove exist
   @patch("subprocess.run")
   def test_get_apt_full_upgrade_target_with_install_and_remove(self, mock_run):
     mock_result = MagicMock()
@@ -145,42 +145,36 @@ class TestUpdateAptSoftwares(unittest.TestCase):
         self.assertEqual(len(to_remove), 0)
         mock_logger.warning.assert_called_with("Failed to parse %d apt-get lines", 3)
 
-  # 修正: test_run_apt_full_upgrade_failureで例外を正しく発生させる
+  # Failure: os.system raises an exception
   @patch("os.system")
   def test_run_apt_full_upgrade_failure(self, mock_system):
     mock_system.side_effect = Exception("Upgrade failed")
 
-    # 実行
     result = run_apt_full_upgrade()
 
-    # アサーション
     self.assertFalse(result)
 
-  # 正常系: フルアップグレードの実行
+  # Success: run the full upgrade
   @patch("os.system")
   def test_run_apt_full_upgrade(self, mock_system):
     mock_system.return_value = 0
 
-    # 実行
     result = run_apt_full_upgrade()
 
-    # アサーション
     self.assertTrue(result)
     mock_system.assert_called_once_with("apt-get -y dist-upgrade")
 
-  # 異常系: フルアップグレードの実行失敗
+  # Failure: the full upgrade exits non-zero
   @patch("os.system")
   def test_run_apt_full_upgrade_failure(self, mock_system):
     mock_system.return_value = 1
 
-    # 実行
     result = run_apt_full_upgrade()
 
-    # アサーション
     self.assertFalse(result)
     mock_system.assert_called_once_with("apt-get -y dist-upgrade")
 
-  # 正常系: dpkg が中断状態でない場合、run_dpkg_configure() は呼ばれず既存フローが継続する
+  # Success: dpkg is not interrupted, so run_dpkg_configure() is not called and the normal flow continues
   @patch("src.linux.update_apt_softwares.run_apt_update")
   @patch("src.linux.update_apt_softwares.get_apt_full_upgrade_target")
   @patch("src.linux.update_apt_softwares.run_apt_full_upgrade")
@@ -205,7 +199,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     mock_issue_instance.comment.assert_not_called()
     mock_run_apt_update.assert_called()
 
-  # 正常系: dpkg が中断状態で修復に成功した場合、コメントを追加して既存フローが継続する
+  # Success: dpkg is interrupted and repaired, so a comment is posted and the normal flow continues
   @patch("src.linux.update_apt_softwares.run_apt_update")
   @patch("src.linux.update_apt_softwares.get_apt_full_upgrade_target")
   @patch("src.linux.update_apt_softwares.run_apt_full_upgrade")
@@ -233,7 +227,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     )
     mock_run_apt_update.assert_called()
 
-  # 異常系: dpkg が中断状態で修復に失敗した場合、failed で即時中断する
+  # Failure: dpkg is interrupted and repair fails, so the run aborts immediately with failed
   @patch("src.linux.update_apt_softwares.run_apt_update")
   @patch("src.linux.update_apt_softwares.get_apt_full_upgrade_target")
   @patch("src.linux.update_apt_softwares.run_apt_full_upgrade")
@@ -267,7 +261,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     self.assertIn("os_eol", last_call.kwargs)
     self.assertIn("os_eol_critical", last_call.kwargs)
 
-  # 正常系: run関数のテスト
+  # Success: run()
   @patch("src.linux.update_apt_softwares.get_os_display_string", return_value="Ubuntu 22.04.5 LTS")
   @patch("src.linux.update_apt_softwares.run_apt_update")
   @patch("src.linux.update_apt_softwares.get_apt_full_upgrade_target")
@@ -276,35 +270,31 @@ class TestUpdateAptSoftwares(unittest.TestCase):
   @patch("src.linux.update_apt_softwares.logger")
   @patch("src.linux.update_apt_softwares.GitHubIssue")
   def test_run_success(self, mock_github_issue, mock_logger, mock_is_root, mock_run_apt_full_upgrade, mock_get_apt_full_upgrade_target, mock_run_apt_update, mock_get_os_display_string):
-    # モックの設定
     mock_issue_instance = MagicMock()
     mock_github_issue.return_value = mock_issue_instance
     mock_run_apt_update.return_value = MagicMock()
     mock_get_apt_full_upgrade_target.return_value = (MagicMock(), ["pkg1"], [], [])
     mock_run_apt_full_upgrade.return_value = True
 
-    # 実行
     from src.linux.update_apt_softwares import run
     run(mock_issue_instance, "test-host")
 
-    # アサーション
-    mock_logger.info.assert_called()  # ログが出力されていることを確認
-    mock_issue_instance.atomic_update_with_retry.assert_called()  # GitHubIssueの原子的更新が呼ばれていることを確認
-    # operation_system が全呼び出しに渡されていることを確認
+    mock_logger.info.assert_called()
+    mock_issue_instance.atomic_update_with_retry.assert_called()
+    # operation_system is passed to every call
     for call_args in mock_issue_instance.atomic_update_with_retry.call_args_list:
       self.assertEqual(call_args.kwargs["operation_system"], "Ubuntu 22.04.5 LTS")
 
-  # 異常系: root権限がない場合
+  # Failure: not running as root
   @patch("src.linux.update_apt_softwares.is_root", return_value=False)
   @patch("src.linux.update_apt_softwares.logger")
   def test_run_no_root(self, mock_logger, mock_is_root):
     from src.linux.update_apt_softwares import run
     run(None, "test-host")
 
-    # アサーション
     mock_logger.error.assert_called_with("This script must be run as root.")
 
-  # 修正: test_run_apt_update_exceptionでgithub_issueをモックとして渡す
+  # Failure: apt update raises an exception
   @patch("src.linux.update_apt_softwares.get_os_display_string", return_value="Ubuntu 22.04.5 LTS")
   @patch("src.linux.update_apt_softwares.run_apt_update", side_effect=Exception("Update failed"))
   @patch("src.linux.update_apt_softwares.is_root", return_value=True)
@@ -317,13 +307,12 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     from src.linux.update_apt_softwares import run
     run(mock_issue_instance, "test-host")
 
-    # アサーション
     mock_logger.error.assert_called_with("An error occurred during the upgrade: Update failed")
-    # 例外系でも operation_system が渡されていることを確認
+    # operation_system is passed on the error path too
     call_args = mock_issue_instance.atomic_update_with_retry.call_args
     self.assertEqual(call_args.kwargs["operation_system"], "Ubuntu 22.04.5 LTS")
 
-  # 正常系: dpkg --audit の出力が空 (中断状態でない)
+  # Success: dpkg --audit prints nothing (not interrupted)
   @patch("subprocess.run")
   def test_is_dpkg_broken_false(self, mock_run):
     mock_result = MagicMock()
@@ -338,7 +327,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
       capture_output=True,
     )
 
-  # 異常系: dpkg --audit の出力が非空 (中断状態)
+  # Failure: dpkg --audit prints output (interrupted)
   @patch("subprocess.run")
   def test_is_dpkg_broken_true(self, mock_run):
     mock_result = MagicMock()
@@ -348,7 +337,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
 
     self.assertTrue(is_dpkg_broken())
 
-  # 異常系: dpkg --audit の実行自体が失敗する
+  # Failure: dpkg --audit cannot be executed
   @patch("src.linux.update_apt_softwares.logger")
   @patch("subprocess.run")
   def test_is_dpkg_broken_command_error(self, mock_run, mock_logger):
@@ -357,7 +346,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     self.assertFalse(is_dpkg_broken())
     mock_logger.warning.assert_called_once()
 
-  # 異常系: dpkg --audit が非 0 の終了コードで終了する (実行自体の失敗)
+  # Failure: dpkg --audit exits non-zero (execution failure)
   @patch("src.linux.update_apt_softwares.logger")
   @patch("subprocess.run")
   def test_is_dpkg_broken_non_zero_returncode(self, mock_run, mock_logger):
@@ -369,7 +358,7 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     self.assertFalse(is_dpkg_broken())
     mock_logger.warning.assert_called_once()
 
-  # 正常系: dpkg --configure -a の実行成功
+  # Success: dpkg --configure -a succeeds
   @patch("os.system")
   def test_run_dpkg_configure_success(self, mock_system):
     mock_system.return_value = 0
@@ -377,14 +366,14 @@ class TestUpdateAptSoftwares(unittest.TestCase):
     self.assertTrue(run_dpkg_configure())
     mock_system.assert_called_once_with("dpkg --configure -a")
 
-  # 異常系: dpkg --configure -a の実行失敗
+  # Failure: dpkg --configure -a fails
   @patch("os.system")
   def test_run_dpkg_configure_failure(self, mock_system):
     mock_system.return_value = 1
 
     self.assertFalse(run_dpkg_configure())
 
-  # 異常系: dpkg --configure -a の実行が例外を発生させる
+  # Failure: dpkg --configure -a raises an exception
   @patch("src.linux.update_apt_softwares.logger")
   @patch("os.system")
   def test_run_dpkg_configure_exception(self, mock_system, mock_logger):
