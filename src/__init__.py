@@ -122,6 +122,7 @@ class GitHubIssue:
         
         # Find and update the specific row
         updated = False
+        expected_raw = None
         for software_update in current_software_updates:
           if software_update["computer_name"] == computer_name and software_update["package_manager"] == package_manager:
             # Update the status
@@ -138,6 +139,7 @@ class GitHubIssue:
               software_update["markdown"]["operation_system"] = operation_system
 
             software_update["markdown"]["raw"] = self._build_markdown_row(software_update)
+            expected_raw = software_update["markdown"]["raw"]
             updated = True
             break
         
@@ -158,14 +160,27 @@ class GitHubIssue:
           }
         )
         
-        if response.status_code == 200:
-          # Success - update our local state
-          self.body = new_body
-          self.software_updates = current_software_updates
-          return True
-        else:
+        if response.status_code != 200:
           raise Exception(f"Failed to update issue body: {response.text}")
-          
+
+        # A concurrent host's PATCH built from an older body can overwrite ours even though we got 200.
+        # This only narrows the window: a PATCH landing after this re-read is still not detected.
+        reread_updates = self._get_software_update_rows_from_body(self.__get_issue_body())
+        actual_raw = next(
+          (u["markdown"]["raw"] for u in reread_updates
+           if u["computer_name"] == computer_name and u["package_manager"] == package_manager),
+          None
+        )
+        if actual_raw != expected_raw:
+          raise Exception(
+            f"Verification failed: row for {computer_name}#{package_manager} was not reflected. "
+            f"expected: {expected_raw!r}, actual: {actual_raw!r}"
+          )
+
+        self.body = new_body
+        self.software_updates = current_software_updates
+        return True
+
       except Exception as e:
         if retry_count == max_retries - 1:
           # Last retry failed, propagate the exception

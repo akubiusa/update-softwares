@@ -40,7 +40,7 @@ CI (`.github/workflows/linux-ci.yml`, `windows-ci.yml`) runs `pytest tests/` wit
 - Python style: snake_case, 2-space indentation, UTF-8, LF, final newline, no trailing whitespace (`.editorconfig`). `update_scoop_softwares.py` partly uses 4 spaces; follow the surrounding code.
 - Docstrings and comments are English; use Google-style `Args` / `Returns` / `Raises` and keep them in sync with the implementation. Comment design intent and constraints, not what the code does.
 - Keep the Issue row format and the `<!-- update-softwares#<hostname>#<package_manager> -->` marker compatible: old 6-cell rows and new 7-cell rows (with OS EOL) are both parsed.
-- Update the Issue through `GitHubIssue.atomic_update_with_retry`, which re-reads the body to avoid clobbering concurrent updates from other machines.
+- Update the Issue through `GitHubIssue.atomic_update_with_retry`, which re-reads the body to avoid clobbering concurrent updates from other machines, and re-reads it after the PATCH to verify the host's own row was reflected (retrying if not).
 - Do not put personal data or credentials in logs or Issue comments. The winget report is never posted to the Issue because the Issue repository may be public.
 - Add a unit test for every behavior change. Mock external commands and APIs; tests must not touch the network or the real package managers.
 - The scoop updater intentionally asks for confirmation (`input()`) before stopping a running app.
