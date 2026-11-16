@@ -28,7 +28,7 @@ The Issue body must contain a Markdown table with one row per machine and packag
 | ⏳ | pc01 | Ubuntu 24.04 LTS | apt | 0 | 0 | - | <!-- update-softwares#pc01#apt -->
 ```
 
-Rows with 6 or 7 cells are supported (the 7th cell, OS EOL, is optional); other rows are ignored. Status marks are ✅ (success), ⏳ (running) and 🔴 (failed or EOL critical). Hosts that have no row are skipped with a warning.
+Rows with 6 or 7 cells are supported (the 7th cell, OS EOL, is optional); rows with other cell counts or escaped pipes are ignored and preserved unchanged. Status marks are ✅ (success), ⏳ (running) and 🔴 (failed or EOL critical). Hosts that have no row are skipped with a warning.
 
 ## Usage
 

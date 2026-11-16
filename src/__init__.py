@@ -183,7 +183,7 @@ class GitHubIssue:
     new_rows = []
     for row in rows:
       m = self.row_regex.match(row)
-      if m is None:
+      if m is None or not self._get_software_update_rows_from_body(row):
         new_rows.append(row)
         continue
 
@@ -193,6 +193,8 @@ class GitHubIssue:
         if software_update["computer_name"] == computer_name and software_update["package_manager"] == package_manager:
           new_rows.append(software_update["markdown"]["raw"] + f" <!-- update-softwares#{computer_name}#{package_manager} -->")
           break
+      else:
+        new_rows.append(row)
 
     return "\n".join(new_rows)
 
@@ -207,6 +209,8 @@ class GitHubIssue:
         continue
 
       markdown = m.group("markdown")
+      if r"\|" in markdown:
+        continue
       split_markdown = markdown.split("|")
       
       # Supports 8 columns (old format) and 9 columns (new format with OS EOL)
@@ -264,24 +268,7 @@ class GitHubIssue:
     # Fetch the latest Issue body to reduce conflicts with concurrent runs
     self.body = self.__get_issue_body()
     
-    # Rewrite the rows of the body from self.software_updates:
-    # find the lines ending with <!-- update-softwares#computer_name#package_manager --> and replace them
-    rows = self.body.split("\n")
-    new_rows = []
-    for row in rows:
-      m = self.row_regex.match(row)
-      if m is None:
-        new_rows.append(row)
-        continue
-
-      computer_name = m.group("computer_name")
-      package_manager = m.group("package_manager")
-      for software_update in self.software_updates:
-        if software_update["computer_name"] == computer_name and software_update["package_manager"] == package_manager:
-          new_rows.append(software_update["markdown"]["raw"] + f" <!-- update-softwares#{computer_name}#{package_manager} -->")
-          break
-
-    self.body = "\n".join(new_rows)
+    self.body = self._build_updated_body(self.body, self.software_updates)
 
     response = requests.patch(
       f"https://api.github.com/repos/{self.repo_name}/issues/{self.issue_number}",
@@ -331,67 +318,7 @@ class GitHubIssue:
     return response.json()["body"]
 
   def __get_software_update_rows(self):
-    software_updates = []
-    lines = self.body.split("\n")
-
-    for line in lines:
-      m = self.row_regex.match(line)
-      if m is None:
-        continue
-
-      markdown = m.group("markdown")
-      split_markdown = markdown.split("|")
-      
-      # Supports 8 columns (old format) and 9 columns (new format with OS EOL)
-      if len(split_markdown) == 8:
-        checkmark = split_markdown[1].strip()
-        view_computer_name = split_markdown[2].strip()
-        operation_system = split_markdown[3].strip()
-        package_manager = split_markdown[4].strip()
-        upgraded = split_markdown[5].strip()
-        failed = split_markdown[6].strip()
-        
-        software_updates.append({
-          "markdown": {
-            "checkmark": checkmark,
-            "computer_name": view_computer_name,
-            "operation_system": operation_system,
-            "package_manager": package_manager,
-            "upgraded": upgraded,
-            "failed": failed,
-            "raw": markdown
-          },
-          "computer_name": m.group("computer_name"),
-          "package_manager": m.group("package_manager")
-        })
-      elif len(split_markdown) == 9:
-        checkmark = split_markdown[1].strip()
-        view_computer_name = split_markdown[2].strip()
-        operation_system = split_markdown[3].strip()
-        package_manager = split_markdown[4].strip()
-        upgraded = split_markdown[5].strip()
-        failed = split_markdown[6].strip()
-        os_eol = split_markdown[7].strip()
-        
-        software_updates.append({
-          "markdown": {
-            "checkmark": checkmark,
-            "computer_name": view_computer_name,
-            "operation_system": operation_system,
-            "package_manager": package_manager,
-            "upgraded": upgraded,
-            "failed": failed,
-            "os_eol": os_eol,
-            "raw": markdown
-          },
-          "computer_name": m.group("computer_name"),
-          "package_manager": m.group("package_manager")
-        })
-      else:
-        # Skip rows with an unsupported number of columns
-        continue
-
-    return software_updates
+    return self._get_software_update_rows_from_body(self.body)
 
 
 def is_valid_issue_number(issue_number):
