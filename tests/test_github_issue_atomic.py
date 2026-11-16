@@ -73,6 +73,30 @@ class TestGitHubIssueAtomic(unittest.TestCase):
 
   @patch('src.requests.patch')
   @patch('src.requests.get')
+  def test_updates_preserve_unrecognized_rows(self, mock_get, mock_patch):
+    normal = '| ⏳ | Computer1 | Linux | apt | 0 | 0 | <!-- update-softwares#Computer1#apt -->'
+    other = '| ✅ | Computer2 | Windows | scoop | 5 | 0 | - | <!-- update-softwares#Computer2#scoop -->'
+    extra = '| x | Computer3 | Linux | apt | 0 | 0 | - | extra | <!-- update-softwares#Computer3#apt -->'
+    short = '| x | Computer4 | Linux | apt | 0 | <!-- update-softwares#Computer4#apt -->'
+    escaped = r'| x | Computer5 | Linux\|other | apt | 0 | 0 | <!-- update-softwares#Computer5#apt -->'
+    duplicate = '| x | Computer1 | Linux | apt | 0 | 0 | - | extra | <!-- update-softwares#Computer1#apt -->'
+    original = '\n'.join(['Header', normal, extra, other, short, escaped, duplicate, 'Footer'])
+    updated = normal.replace('⏳', '✅').replace('| 0 | 0 |', '| 3 | 1 |')
+    expected = original.replace(normal, updated)
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {'body': original}
+    mock_patch.return_value.status_code = 200
+
+    issue = GitHubIssue(self.repo_name, self.issue_number, self.github_token)
+    self.assertEqual(len(issue.software_updates), 2)
+    issue.atomic_update_with_retry('Computer1', 'apt', 'success', '3', '1')
+    self.assertEqual(mock_patch.call_args.kwargs['json']['body'], expected)
+
+    issue.update_issue_body()
+    self.assertEqual(mock_patch.call_args.kwargs['json']['body'], expected)
+
+  @patch('src.requests.patch')
+  @patch('src.requests.get')
   def test_atomic_update_with_retry_success(self, mock_get, mock_patch):
     """Test successful atomic update without retry."""
     initial_body = "| ⏳ | Computer1 | Linux | apt | 0 | 0 | <!-- update-softwares#Computer1#apt -->"
