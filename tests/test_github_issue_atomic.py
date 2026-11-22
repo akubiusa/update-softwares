@@ -83,9 +83,7 @@ class TestGitHubIssueAtomic(unittest.TestCase):
     original = '\n'.join(['Header', normal, extra, other, short, escaped, duplicate, 'Footer'])
     updated = normal.replace('⏳', '✅').replace('| 0 | 0 |', '| 3 | 1 |')
     expected = original.replace(normal, updated)
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.return_value = {'body': original}
-    mock_patch.return_value.status_code = 200
+    wire_fake_issue(mock_get, mock_patch, original)
 
     issue = GitHubIssue(self.repo_name, self.issue_number, self.github_token)
     self.assertEqual(len(issue.software_updates), 2)
