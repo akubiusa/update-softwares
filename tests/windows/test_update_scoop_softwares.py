@@ -150,6 +150,25 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
       self.assertIn('app1', result)
       self.assertNotIn('app2', result)
 
+  @patch('src.windows.update_scoop_softwares.get_processes')
+  @patch('src.windows.update_scoop_softwares.os.getenv')
+  def test_get_running_apps_matches_directory_boundaries(self, mock_getenv, mock_getprocs):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      apps = Path(tmpdir) / 'apps'
+      (apps / 'git').mkdir(parents=True)
+      mock_getenv.return_value = tmpdir
+      git_exe = str(apps / 'git' / '2.40.0' / 'git.exe')
+      sibling_exe = str(apps / 'github-desktop' / 'current' / 'GitHubDesktop.exe')
+      upper_exe = str(apps / 'GIT' / 'current' / 'git.exe').upper()
+      mock_getprocs.return_value = [
+        {'pid': 1, 'name': 'git.exe', 'exe': git_exe},
+        {'pid': 2, 'name': 'GitHubDesktop.exe', 'exe': sibling_exe},
+        {'pid': 3, 'name': 'GIT.EXE', 'exe': upper_exe},
+        {'pid': 4, 'name': 'empty', 'exe': ''},
+      ]
+      result = get_running_apps(['git'])
+      self.assertEqual([p['pid'] for p in result['git']], [1, 3])
+
   @patch('src.windows.update_scoop_softwares.subprocess.run', return_value=MagicMock(returncode=0))
   def test_update_scoop_apps_success(self, mock_run):
     result = update_scoop_apps(['a', 'b'])

@@ -1,6 +1,6 @@
 import logging
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import re
 import subprocess
 import textwrap
@@ -185,11 +185,13 @@ def get_running_apps(app_names):
         if not app_dir.exists():
             continue
 
-        # A process belongs to the app if its exe is under the app directory
+        # Compare path components, not string prefixes: `apps\git` must not match `apps\github-desktop`.
+        # PureWindowsPath is used so the comparison is case-insensitive and separator-agnostic.
+        app_dir_win = PureWindowsPath(app_dir)
         app_running_processes = [
             {"pid": process["pid"], "name": process["name"], "exe": process["exe"]}
             for process in running_processes
-            if process["exe"].lower().startswith(str(app_dir).lower())
+            if PureWindowsPath(process["exe"]).is_relative_to(app_dir_win)
         ]
 
         if app_running_processes:
