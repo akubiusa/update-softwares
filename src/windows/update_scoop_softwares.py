@@ -53,10 +53,32 @@ def update_scoop_repos():
   """
   return run_scoop_with_retry(["update"], "Scoop update")
 
-def get_scoop_status():
-    raw_output = os.popen("scoop status").read()
+class ScoopStatusError(Exception):
+  """Raised when scoop status fails or its output cannot be interpreted."""
 
-    cleaned_output = re.sub(r'\x1b\[[0-9;]*m', '', raw_output)
+def get_scoop_status():
+    """Return the outdated apps reported by scoop status.
+
+    scoop status exits 0 even when it only prints a warning (for example on network failures),
+    so output that has neither the table header nor "Everything is ok!" is treated as a failure.
+
+    Returns:
+        list[dict]: One entry per outdated app. Empty only when scoop reported nothing to upgrade.
+
+    Raises:
+        ScoopStatusError: If scoop fails to launch, exits non-zero, or prints unrecognized output.
+    """
+    try:
+        result = subprocess.run(["scoop", "status"], shell=True, capture_output=True, text=True, errors="replace")
+    except OSError as e:
+        raise ScoopStatusError(f"Failed to launch scoop status: {e}") from e
+
+    if result.returncode != 0:
+        if result.stderr:
+            logger.error(f"scoop status stderr: {result.stderr}")
+        raise ScoopStatusError(f"scoop status exited with code {result.returncode}")
+
+    cleaned_output = re.sub(r'\x1b\[[0-9;]*m', '', result.stdout)
 
     lines = cleaned_output.strip().splitlines()
 
@@ -67,7 +89,10 @@ def get_scoop_status():
             break
 
     if header_index is None:
-        return []
+        if 'Everything is ok!' in cleaned_output:
+            return []
+        logger.error(f"Unrecognized scoop status output: {cleaned_output}")
+        raise ScoopStatusError("Unrecognized scoop status output")
 
     header_line = lines[header_index]
     data_lines = lines[header_index + 2:]
@@ -400,7 +425,13 @@ def run(github_issue, hostname) -> None:
         merged_results = {**not_running_apps_results, **running_apps_results}
 
         # scoop can exit with 0 even on errors, so an app we tried to update that is still outdated counts as failed
-        remaining_status_results = get_scoop_status()
+        verification_failed = False
+        try:
+            remaining_status_results = get_scoop_status()
+        except ScoopStatusError as e:
+            logger.error(f"Could not verify the upgrades with scoop status: {e}")
+            verification_failed = True
+            remaining_status_results = []
         remaining_app_names = {app["name"] for app in remaining_status_results}
         for app_name in merged_results:
             if app_name in remaining_app_names:
@@ -409,7 +440,7 @@ def run(github_issue, hostname) -> None:
         success_count = sum(1 for result in merged_results.values() if result)
         failed_count = len(merged_results) - success_count
 
-        status = "success" if repos_updated and failed_count == 0 else "failed"
+        status = "success" if repos_updated and failed_count == 0 and not verification_failed else "failed"
 
         # Set final status atomically
         github_issue.atomic_update_with_retry(
@@ -431,9 +462,12 @@ def run(github_issue, hostname) -> None:
             except Exception as e:
                 logger.warning(f"Failed to post scoop cleanup warning: {e}")
 
-        print("Failed upgrade applications:")
-        for app in remaining_status_results:
-              print(f" - {app['name']}")
+        if verification_failed:
+            print("Could not verify the upgrades: scoop status failed.")
+        else:
+            print("Failed upgrade applications:")
+            for app in remaining_status_results:
+                  print(f" - {app['name']}")
         print("Scoop update completed.")
 
         try:

@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from src.windows.update_scoop_softwares import (
+  ScoopStatusError,
   update_scoop_repos,
   get_scoop_status,
   post_github_comment,
@@ -58,21 +59,45 @@ class TestUpdateScoopSoftwares(unittest.TestCase):
     self.assertFalse(update_scoop_repos())
     self.assertEqual(mock_run.call_count, 5)
 
-  @patch('src.windows.update_scoop_softwares.os.popen')
-  def test_get_scoop_status_empty(self, mock_popen):
-    popen = MagicMock()
-    popen.read.return_value = ""
-    mock_popen.return_value = popen
-    self.assertEqual(get_scoop_status(), [])
+  STATUS_HEADER = "Name   Installed Version   Latest Version   Missing Dependencies   Info"
 
-  @patch('src.windows.update_scoop_softwares.os.popen')
-  def test_get_scoop_status_parses(self, mock_popen):
-    header = "Name   Installed Version   Latest Version   Missing Dependencies   Info"
+  def test_get_scoop_status_empty_output_raises(self):
+    with patch('src.windows.update_scoop_softwares.subprocess.run', return_value=MagicMock(returncode=0, stdout="", stderr="")):
+      with self.assertRaisesRegex(ScoopStatusError, "Unrecognized scoop status output"):
+        get_scoop_status()
+
+  def test_get_scoop_status_unrelated_output_raises(self):
+    output = "WARN  Scoop bucket 'main' is not reachable\n"
+    with patch('src.windows.update_scoop_softwares.subprocess.run', return_value=MagicMock(returncode=0, stdout=output, stderr="")):
+      with self.assertRaisesRegex(ScoopStatusError, "Unrecognized scoop status output"):
+        get_scoop_status()
+
+  def test_get_scoop_status_nonzero_exit_raises(self):
+    with patch('src.windows.update_scoop_softwares.subprocess.run', return_value=MagicMock(returncode=1, stdout="", stderr="boom")):
+      with self.assertRaisesRegex(ScoopStatusError, "scoop status exited with code 1"):
+        get_scoop_status()
+
+  def test_get_scoop_status_launch_failure_raises(self):
+    with patch('src.windows.update_scoop_softwares.subprocess.run', side_effect=OSError("not found")):
+      with self.assertRaisesRegex(ScoopStatusError, "Failed to launch scoop status: not found"):
+        get_scoop_status()
+
+  def test_get_scoop_status_everything_ok_returns_empty(self):
+    output = "\x1b[32mEverything is ok!\x1b[0m\n"
+    with patch('src.windows.update_scoop_softwares.subprocess.run', return_value=MagicMock(returncode=0, stdout=output, stderr="")):
+      self.assertEqual(get_scoop_status(), [])
+
+  def test_get_scoop_status_header_without_rows_returns_empty(self):
+    output = self.STATUS_HEADER + "\n\n"
+    with patch('src.windows.update_scoop_softwares.subprocess.run', return_value=MagicMock(returncode=0, stdout=output, stderr="")):
+      self.assertEqual(get_scoop_status(), [])
+
+  @patch('src.windows.update_scoop_softwares.subprocess.run')
+  def test_get_scoop_status_parses(self, mock_run):
     line = "app1   1.0                 2.0                 none                   OK"
-    popen = MagicMock()
-    popen.read.return_value = header + "\n\n" + line + "\n"
-    mock_popen.return_value = popen
+    mock_run.return_value = MagicMock(returncode=0, stdout=self.STATUS_HEADER + "\n\n" + line + "\n", stderr="")
     result = get_scoop_status()
+    mock_run.assert_called_once_with(["scoop", "status"], shell=True, capture_output=True, text=True, errors="replace")
     self.assertEqual(len(result), 1)
     entry = result[0]
     self.assertEqual(entry['name'], 'app1')
@@ -488,6 +513,23 @@ class TestRunStatusFlow(unittest.TestCase):
     run(self.issue, "host")
     self.assertEqual(self.final_status(), "success")
     self.assertEqual(self.issue.atomic_update_with_retry.call_args.kwargs["upgraded"], "1")
+
+  def test_first_status_failure_marks_failed_without_updating(self):
+    self.mocks['get_scoop_status'].side_effect = ScoopStatusError("Unrecognized scoop status output")
+    run(self.issue, "host")
+    self.assertEqual(self.final_status(), "failed")
+    self.mocks['update_scoop_apps'].assert_not_called()
+
+  def test_verification_failure_marks_failed_and_keeps_counts(self):
+    outdated = {'name': 'a', 'installed': '1', 'latest': '2', 'missing': '', 'info': ''}
+    self.mocks['get_scoop_status'].side_effect = [[outdated], ScoopStatusError("Unrecognized scoop status output")]
+    self.mocks['update_scoop_apps'].return_value = {'a': True}
+    run(self.issue, "host")
+    kwargs = self.issue.atomic_update_with_retry.call_args.kwargs
+    self.assertEqual(kwargs["status"], "failed")
+    self.assertEqual(kwargs["upgraded"], "1")
+    self.assertEqual(kwargs["failed"], "0")
+    self.mocks['cleanup_scoop'].assert_called_once()
 
   def test_other_outdated_app_not_attempted_does_not_fail_status(self):
     other = {'name': 'other', 'installed': '1', 'latest': '2', 'missing': '', 'info': ''}
