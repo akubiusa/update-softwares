@@ -121,18 +121,20 @@ jobs:
           (steps.collect-reviews.outputs.review_count > 0 || 
            steps.collect-reviews.outputs.inline_count > 0)
         env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           PR_NUMBER: ${{ steps.get-pr-number.outputs.pr_number }}
           REVIEW_COUNT: ${{ steps.collect-reviews.outputs.review_count }}
           INLINE_COUNT: ${{ steps.collect-reviews.outputs.inline_count }}
           TRIGGER_TYPE: ${{ github.event_name }}
         run: |
-          # Check for an existing Copilot re-request comment (matched by its text)
-          EXISTING_COMMENT=$(gh pr view ${PR_NUMBER} --json comments --jq '
-            .comments[] | 
-            select(.author.login == "github-actions[bot]" and 
-                   (.body | contains("@Copilot 以下のレビューコメントを修正してください"))) |
-            .id
-          ' | head -1)
+          # The re-request comment is posted with the PAT, so its author is the PAT owner (not github-actions).
+          # Keep these as plain assignments (no pipe): the default shell has no pipefail, and a failure must stop the step.
+          PAT_LOGIN=$(gh api user --jq .login)
+          [ -n "$PAT_LOGIN" ] || { echo "Could not resolve the PAT owner login"; exit 1; }
+          COMMENTS_JSON=$(gh pr view "${PR_NUMBER}" --json comments)
+
+          # Check for an existing Copilot re-request comment (matched by its author and text)
+          EXISTING_COMMENT=$(echo "$COMMENTS_JSON" | jq -r --arg login "$PAT_LOGIN" 'first(.comments[] | select(.author.login == $login and (.body | contains("@Copilot 以下のレビューコメントを修正してください"))) | .id) // empty')
 
           if [ -n "$EXISTING_COMMENT" ]; then
             echo "⚠️ An auto-generated Copilot re-request comment already exists (ID: $EXISTING_COMMENT)"
