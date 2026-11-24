@@ -26,6 +26,8 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -42,13 +44,13 @@ jobs:
             fi
           done < .devcontainer/apt-packages.txt
           python3 -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install pytest
 
       - name: Run tests
         run: |
           python3 --version
-          pytest tests/
+          python3 -m pytest tests/
         env:
           PYTHONPATH: .
 
